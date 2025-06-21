@@ -123,6 +123,7 @@ const updateProfileUser = async ( req, res ) => {
 const getUserSidebarDetails = async ( req, res ) => {
   try {
     const userId = req.user.id;
+  
     const user = await User.findById( userId ).select("name profile_image");
 
     if ( !user ) {

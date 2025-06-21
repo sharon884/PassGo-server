@@ -67,16 +67,17 @@ const signupUser = async (req, res) => {
 //user login
 const loginUser = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
-    if (!email || !password || !role) {
+    if (!email || !password ) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Email, Password, role are required!",
+        message: "Email, Password are required!",
       });
     }
 
-    const existUser = await User.findOne({ email, role });
+    const existUser = await User.findOne({ email });
+  
     if (!existUser) {
       return res.status(STATUS_CODE.UNAUTHORIZED).json({
         success: false,
