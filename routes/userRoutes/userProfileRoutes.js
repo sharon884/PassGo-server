@@ -5,7 +5,7 @@ const { getUserProfile , updatePasswordUser, updateProfileUser, getUserSidebarDe
 const  verifyToken = require("../../middlewares/verifyTokenMiddleware");
 const userOnly = require("../../middlewares/authorizedRoleMiddlewares/wrappers/userOnly");
 
-router.get( "/get-user-Profile",  verifyToken, userOnly, getUserProfile);
+router.get( "/get-user-profile",  verifyToken, getUserProfile);
 router.route("/update-password").patch( verifyToken, userOnly, updatePasswordUser);
 router.route("/update-Profile").put( verifyToken, userOnly, updateProfileUser );
 router.route("/get-details").get(verifyToken, getUserSidebarDetails);
