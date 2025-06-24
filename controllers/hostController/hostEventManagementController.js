@@ -3,15 +3,17 @@ const STATUS_CODE = require("../../constants/statuscodes");
 const generateSeatsForEvent = require("../../utils/seatHelper");
 
 
-const createEvent =  async ( req, res ) => {
+const createDraftEvent =  async ( req, res ) => {
    try {
     const hostId = req.user.id;
+
      const {
         title,
         description,
         category,
         images,
-        location,
+        location, 
+        coordinates,
         date,
         time,
         tickets,
@@ -26,6 +28,10 @@ const createEvent =  async ( req, res ) => {
         });
       }
       
+      const estimatedRevenue = 
+      tickets?.VIP?.price * tickets?.VIP?.quantity + 
+      tickets?.general?.price * tickets?.general?.quantity; 
+
       const event = new Event({
           host: hostId,
           title,
@@ -33,35 +39,74 @@ const createEvent =  async ( req, res ) => {
           category,
           images,
           location,
+          coordinates,
           date,
           time,
           tickets,
           businessInfo,
-         
+          status : "draft",
+          advancePaid : false,
+          estimatedRevenue,
         });
         
         await event.save();
-        try {
-
-          await generateSeatsForEvent(event);
-        } catch ( error ) {
-          console.log("seat generation failed:", error);
-          throw err;
-        }
-
-        
-        
+            
       res.status(STATUS_CODE.CREATED).json({
         success : true,
-        message : "Event submitted successfull after the admin verification it will show on the site"
+        message : "Draft event created. Proceed to advance payment.",
+        eventId : event._id,
       });
    }catch ( error ) {
-    console.log("++++",error)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
         success : false,
         message : "Something went wrong while creating the event",
     });
    }
+};
+
+const submitEventAfterPayment = async ( req, res ) => {
+    try {
+        const hostId = req.user.id;
+        const { eventId } = req.params;
+
+        const event = await Event.findOne({_id : eventId, host : hostId });
+
+        if ( !event ) {
+            return res.status(STATUS_CODE.NOT_FOUND).json({
+                success : false,
+                message : "Event not found"
+            });
+        };
+
+        if ( event.advancePaid !== true ) {
+            return res.status(STATUS_CODE.BAD_REQUEST).json({
+                success : false,
+                message : "Advance payment not completed "
+            });
+        };
+
+        event.status = "requested";
+        await event.save();
+
+         try {
+
+           await generateSeatsForEvent(event);
+         } catch ( error ) {
+           console.log("seat generation failed:", error);
+          throw err;
+        }
+
+        return res.status(STATUS_CODE.CREATED).json({
+            success : false,
+            message : "Event submitted for admin approval.",
+        });
+    } catch ( error ) {
+        console.error("SubmitEventAfterPayment error:",error);
+        return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+            success : false,
+            message : "Something went wrong while submiting the event.",
+        })
+    };
 };
 
 
@@ -166,7 +211,8 @@ const getEventDetails = async ( req, res ) => {
 };
 
 module.exports = {
-    createEvent,
+   createDraftEvent,
+   submitEventAfterPayment,
     getHostEvents,
     getEventDetails,
     updateEvent,

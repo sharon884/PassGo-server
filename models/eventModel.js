@@ -4,7 +4,7 @@ const eventSchema = new mongoose.Schema(
   {
     host: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Host",
+      ref: "User",
       required: true,
     },
     title: {
@@ -39,12 +39,16 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    coordinates: {
+      lat: Number,
+      lng: Number,
+    },
     date: {
       type: Date,
       required: true,
       validate: {
         validator: function (value) {
-          return value > new Date();
+          return value => new Date();
         },
         message: "Event date must be in the future",
       },
@@ -78,7 +82,26 @@ const eventSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      enum: ["draft", "pending_payment", "requested", "approved", "rejected", "active", "completed", "cancelled"],
+      default: "draft",
+    },
+    advancePaid: {
+      type: Boolean,
+      default: false,
+    },
+    rejectionReason: {
+      type: String,
+      default: null,
+    },
+     estimatedRevenue: {
+      type: Number,
+      default: 0,
+    },
+
   },
+
   { timestamps: true }
 );
 

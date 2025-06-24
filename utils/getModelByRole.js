@@ -5,6 +5,8 @@ const getModelByRole = ( role ) => {
     switch ( role ) {
         case "user" :
             return User;
+        case "host" :
+            return User;
         case "admin" :
             return Admin;  
         default : 
