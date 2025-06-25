@@ -10,7 +10,7 @@ const runValidation = require("../../middlewares/globalMiddleware/globalValidati
 
 
 
-router.route("/event/draft").post( verifyTokenMiddleware , validateEventData, runValidation, createDraftEvent );
+router.route("/draft").post( verifyTokenMiddleware , validateEventData, runValidation, createDraftEvent );
 router.route("/event/:eventId/submit").put( verifyTokenMiddleware, submitEventAfterPayment);
 router.route("/my-events").get(verifyTokenMiddleware, getHostEvents )
 router.route("/:eventId").get(verifyTokenMiddleware,getEventDetails)

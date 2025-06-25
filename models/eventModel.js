@@ -48,7 +48,7 @@ const eventSchema = new mongoose.Schema(
       required: true,
       validate: {
         validator: function (value) {
-          return value => new Date();
+          return value > new Date();
         },
         message: "Event date must be in the future",
       },

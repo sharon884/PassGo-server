@@ -1,6 +1,6 @@
 const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
-const generateSeatsForEvent = require("../../utils/seatHelper");
+// const generateSeatsForEvent = require("../../utils/seatHelper");
 
 
 const createDraftEvent =  async ( req, res ) => {
@@ -88,13 +88,13 @@ const submitEventAfterPayment = async ( req, res ) => {
         event.status = "requested";
         await event.save();
 
-         try {
+        //  try {
 
-           await generateSeatsForEvent(event);
-         } catch ( error ) {
-           console.log("seat generation failed:", error);
-          throw err;
-        }
+        //    await generateSeatsForEvent(event);
+        //  } catch ( error ) {
+        //    console.log("seat generation failed:", error);
+        //   throw err;
+        // }
 
         return res.status(STATUS_CODE.CREATED).json({
             success : false,
