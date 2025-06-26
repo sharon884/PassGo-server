@@ -1,7 +1,7 @@
-const Event = require("../../models/adminModel");
+const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
 const  genarateSeatsForEvent = require("../../utils/seatHelper");
-const wallet = require("../../models/walletModel");
+const Wallet = require("../../models/walletModel");
 
 
 // const getPendingEvents = async ( req, res ) => {
@@ -52,34 +52,53 @@ const wallet = require("../../models/walletModel");
 //         })
 //     }
 // };
+const getPendingEvents = async (req, res) => {
+  try {
+  
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
 
-const getPendingEvents = async (  req, res ) => {
-      
-    try {
-        const events = await Event.find({ advancePaid : true, isApproved : false, status : "requested"}).populate("host", "name email mobile").sort({ createdAt :-1})
+    const [events, total] = await Promise.all([
+      Event.find({
+        advancePaid: true,
+        isApproved: false,
+        status: "requested",
+      })
+        .populate("host", "name email mobile")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
 
-        if ( !events || events. length === 0) {
-            return res.status(STATUS_CODE.NOT_FOUND).json({
-                success : false,
-                message : "No pending events found",
-            });
-        };
+      Event.countDocuments({
+        advancePaid: true,
+        isApproved: false,
+        status: "requested",
+      }),
+    ]);
 
-        return res.status(STATUS_CODE.SUCCESS).json({
-            success : true,
-            message : "Events fetch successfully!",
-            events,
-        });
-    } catch ( error ) {
-        console.log("fetch approved events pending error:", error);
-        return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-            success : false,
-            message : "server error",
-        })
-    };
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "Events fetched successfully!",
+      events,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.log("fetch approved events pending error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error",
+    });
+  }
 };
 
+//approve the event by admin
 const approveEvent  = async ( req, res ) => {
     try {
         const { eventId } = req.params;
@@ -91,9 +110,11 @@ const approveEvent  = async ( req, res ) => {
                 message : "Event not found",
             });
         };
-
-        if ( event.status !== "requested" || !event.advancePaid ) {
-            return res.status(STATUS_CODE.BAD_REQUEST).josn({
+     console.log(event.status);
+        if ( event.status !== "requested" || !event.
+advancePaid
+ ) {
+            return res.status(STATUS_CODE.BAD_REQUEST).json({
                 success : false,
                 message : "Event is not eligible for apporoval",
             });
@@ -104,13 +125,14 @@ const approveEvent  = async ( req, res ) => {
         await event.save();
 
         await genarateSeatsForEvent(event);
+        console.log("ivde vannow ");
     
-        return res.staus(STATUS_CODE.SUCCESS).josn({
+        return res.status(STATUS_CODE.SUCCESS).josn({
             success : true,
             message : "Event approved and seats genarated",
         });
     } catch ( error ) {
-        console.eror("Approve Event Error", error);
+        console.error("Approve Event Error", error);
         return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
             success : false,
             message : "server error while approving event"
@@ -119,6 +141,8 @@ const approveEvent  = async ( req, res ) => {
 };
 
 
+
+//reject the event by admin with reason
 const rejectEvent = async ( req, res ) => {
     try {
         const { eventId } = req.params;
@@ -133,7 +157,7 @@ const rejectEvent = async ( req, res ) => {
             });
         };
 
-        if ( event.status === !"requested" || !event.advancePaid ) {
+        if ( event.status !=="requested" || !event.advancePaid ) {
             return res.status(STATUS_CODE.BAD_REQUEST).josn({
                 success : false,
                 message : "Event is not eligible for rejection",
@@ -142,9 +166,10 @@ const rejectEvent = async ( req, res ) => {
 
         const refundAmount = Math.ceil(event.estimatedRevenue * 0.2) || 200 ;
 
-        let wallet = await wallet.findOne({ user : event.host });
+        let wallet = await Wallet.findOne({ user : event.host });
+        console.log(wallet);
         if ( !wallet ) {
-            wallet = new wallet({ user : event.host, balance : 0, history : []});
+            wallet = new Wallet({ user : event.host, balance : 0, history : []});
 
         }
 

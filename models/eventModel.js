@@ -99,6 +99,17 @@ const eventSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+     eventType: {
+    type: String,
+    enum: ['free', 'paid_stage_with_seats', 'paid_stage_without_seats'],
+    required: true,
+  },
+  layoutId: {
+    type: String,
+    required: function () {
+      return this.eventType === 'paid_stage_with_seats';
+    },
+  },
 
   },
 
