@@ -77,7 +77,7 @@ const getPendingEvents = async (req, res) => {
         status: "requested",
       }),
     ]);
-
+  console.log(events)
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Events fetched successfully!",
@@ -127,7 +127,7 @@ advancePaid
         await genarateSeatsForEvent(event);
         console.log("ivde vannow ");
     
-        return res.status(STATUS_CODE.SUCCESS).josn({
+        return res.status(STATUS_CODE.SUCCESS).json({
             success : true,
             message : "Event approved and seats genarated",
         });
@@ -158,7 +158,7 @@ const rejectEvent = async ( req, res ) => {
         };
 
         if ( event.status !=="requested" || !event.advancePaid ) {
-            return res.status(STATUS_CODE.BAD_REQUEST).josn({
+            return res.status(STATUS_CODE.BAD_REQUEST).json({
                 success : false,
                 message : "Event is not eligible for rejection",
             });

@@ -2,67 +2,90 @@ const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
 // const generateSeatsForEvent = require("../../utils/seatHelper");
 
-
-const createDraftEvent =  async ( req, res ) => {
-   try {
+const createDraftEvent = async (req, res) => {
+  try {
     const hostId = req.user.id;
 
-     const {
-        title,
-        description,
-        category,
-        images,
-        location, 
-        coordinates,
-        date,
-        time,
-        tickets,
-        businessInfo,
-        highlights, 
-      } = req.body;
+    const {
+      title,
+      description,
+      category,
+      images,
+      location,
+      coordinates,
+      date,
+      time,
+      tickets,
+      businessInfo,
+      highlights,
+      eventType,
+      layoutId,
+    } = req.body;
 
-      if ( !Array.isArray(images) || images.length < 3 ) {
-        return res.status(STATUS_CODE.BAD_REQUEST).json({
-            success : false,
-            message : "Minimum 3 images are required",
-        });
-      }
-      
-      const estimatedRevenue = 
-      tickets?.VIP?.price * tickets?.VIP?.quantity + 
-      tickets?.general?.price * tickets?.general?.quantity; 
-
-      const event = new Event({
-          host: hostId,
-          title,
-          description,
-          category,
-          images,
-          location,
-          coordinates,
-          date,
-          time,
-          tickets,
-          businessInfo,
-          status : "draft",
-          advancePaid : false,
-          estimatedRevenue,
-        });
-        
-        await event.save();
-            
-      res.status(STATUS_CODE.CREATED).json({
-        success : true,
-        message : "Draft event created. Proceed to advance payment.",
-        eventId : event._id,
+    if (!Array.isArray(images) || images.length < 3) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Minimum 3 images are required",
       });
-   }catch ( error ) {
-    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-        success : false,
-        message : "Something went wrong while creating the event",
+    }
+
+    // Validate eventType
+    const allowedEventTypes = ["free", "paid_stage_without_seats", "paid_stage_with_seats"];
+    if (!allowedEventTypes.includes(eventType)) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Invalid event type",
+      });
+    }
+
+    // layoutId is required for "paid_stage_with_seats"
+    if (eventType === "paid_stage_with_seats" && !layoutId) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Stage layout is required for events with seats",
+      });
+    }
+
+    const estimatedRevenue =
+      (tickets?.VIP?.price || 0) * (tickets?.VIP?.quantity || 0) +
+      (tickets?.general?.price || 0) * (tickets?.general?.quantity || 0);
+
+    const event = new Event({
+      host: hostId,
+      title,
+      description,
+      category,
+      images,
+      location,
+      coordinates,
+      date,
+      time,
+      tickets,
+      businessInfo,
+      highlights,
+      eventType,
+      layoutId: eventType === "paid_stage_with_seats" ? layoutId : null,
+      status: "draft",
+      advancePaid: false,
+      estimatedRevenue,
     });
-   }
+
+    await event.save();
+
+    return res.status(STATUS_CODE.CREATED).json({
+      success: true,
+      message: "Draft event created. Proceed to advance payment.",
+      eventId: event._id,
+    });
+  } catch (error) {
+    console.log("Create Draft Event Error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Something went wrong while creating the event",
+    });
+  }
 };
+
 
 const submitEventAfterPayment = async ( req, res ) => {
     try {

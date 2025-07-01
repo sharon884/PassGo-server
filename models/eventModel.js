@@ -21,12 +21,7 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: [true, "Event category is required"],
       enum: {
-        values: [
-          "Music",
-          "Art",
-          "Fashion",
-          "Motosports",
-        ],
+        values: ["Music", "Art", "Fashion", "Motosports"],
         message: "{VALUE} is not a valid category",
       },
     },
@@ -40,8 +35,8 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
     coordinates: {
-      lat: Number,
-      lng: Number,
+      lat: { type: Number, required: true },
+      lng: { type: Number, required: true },
     },
     date: {
       type: Date,
@@ -75,8 +70,16 @@ const eventSchema = new mongoose.Schema(
     businessInfo: {
       name: { type: String, required: true },
       organization_name: { type: String, required: true },
-      email: { type: String, required: true,   match: [/\S+@\S+\.\S+/, "Please provide a valid email"], },
-      mobile: { type: String, required: true , match: [/^\d{10}$/, "Please provide a valid 10-digit mobile number"], },
+      email: {
+        type: String,
+        required: true,
+        match: [/\S+@\S+\.\S+/, "Please provide a valid email"],
+      },
+      mobile: {
+        type: String,
+        required: true,
+        match: [/^\d{10}$/, "Please provide a valid 10-digit mobile number"],
+      },
     },
     isApproved: {
       type: Boolean,
@@ -84,7 +87,16 @@ const eventSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "pending_payment", "requested", "approved", "rejected", "active", "completed", "cancelled"],
+      enum: [
+        "draft",
+        "pending_payment",
+        "requested",
+        "approved",
+        "rejected",
+        "active",
+        "completed",
+        "cancelled",
+      ],
       default: "draft",
     },
     advancePaid: {
@@ -95,24 +107,22 @@ const eventSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-     estimatedRevenue: {
+    estimatedRevenue: {
       type: Number,
       default: 0,
     },
-     eventType: {
-    type: String,
-    enum: ['free', 'paid_stage_with_seats', 'paid_stage_without_seats'],
-    required: true,
-  },
-  layoutId: {
-    type: String,
-    required: function () {
-      return this.eventType === 'paid_stage_with_seats';
+    eventType: {
+      type: String,
+      enum: ["free", "paid_stage_with_seats", "paid_stage_without_seats"],
+      required: true,
+    },
+    layoutId: {
+      type: String,
+      required: function () {
+        return this.eventType === "paid_stage_with_seats";
+      },
     },
   },
-
-  },
-
   { timestamps: true }
 );
 
@@ -121,5 +131,4 @@ function arrayLimit(val) {
 }
 
 const Event = mongoose.model("Event", eventSchema);
-
 module.exports = Event;
