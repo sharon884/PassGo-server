@@ -1,2 +1,5 @@
 node_modules
 .env
+# Sensitive credentials
+config/google-vision-key.json
+config/pancardocr-463311-807426015a95.json
