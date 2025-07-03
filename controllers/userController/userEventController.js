@@ -7,8 +7,8 @@ const getApprovedEvents = async ( req, res ) => {
         const limit = parseInt(req.query.limit) || 6 ;
         const skip = ( page -1) * limit;
 
-        const events = await Event.find({isApproved : true }).skip(skip).limit(limit)
-        const total = await Event.countDocuments({isApproved : true });
+        const events = await Event.find({isApproved : true, advancePaid :true }).skip(skip).limit(limit)
+        const total = await Event.countDocuments({isApproved : true, advancePaid : true });
         return res.status(STATUS_CODE.SUCCESS).json({
             success : true,
             message : "approved events from server fetched successfully",

@@ -1,5 +1,3 @@
-// models/orderModel.js
-
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
@@ -19,6 +17,10 @@ const orderSchema = new mongoose.Schema({
       price: Number
     }
   ],
+  quantity: {
+    type: Number,
+    default: 0 // used for non-seat-based bookings
+  },
   category: {
     type: String,
     enum: ['VIP', 'General'],
@@ -28,7 +30,7 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-   gstAmount: {
+  gstAmount: {
     type: Number,
     required: true
   },
@@ -43,17 +45,16 @@ const orderSchema = new mongoose.Schema({
     enum: ['created', 'paid', 'failed'],
     default: 'created'
   },
-   paymentMethod: {
+  paymentMethod: {
     type: String,
-    enum: [ 'upi', 'wallet'],
-    required: true,
+    enum: ['upi', 'wallet'],
+    required: true
   },
-
-refundStatus: {
-  type: String,
-  enum: ['not_requested', 'requested', 'refunded'],
-  default: 'not_requested'
-},
-},{ timestamps: true },)
+  refundStatus: {
+    type: String,
+    enum: ['not_requested', 'requested', 'refunded'],
+    default: 'not_requested'
+  }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

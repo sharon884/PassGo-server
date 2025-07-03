@@ -16,7 +16,6 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 const handleRefreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    console.log("request got at the refresh token endpoint")
 
     if (!refreshToken) {
       return res.status(STATUS_CODE.UNAUTHORIZED).json({

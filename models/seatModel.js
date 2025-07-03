@@ -11,7 +11,8 @@ const seatSchema = new mongoose.Schema({
     required: true,
   },
   category: {
-    type: String, // e.g. "VIP", "General"
+    type: String,
+    enum: ["VIP", "General"], // e.g. "VIP", "General"
     required: true,
   },
   price: {
@@ -32,7 +33,19 @@ const seatSchema = new mongoose.Schema({
     type: Date,
     default : null, // when the lock expires
   },
+  bookedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  bookedAt: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true });
+
+seatSchema.index({ event: 1, seatNumber: 1 }, { unique: true });
+
 
 const Seat = mongoose.model("Seat", seatSchema);
 
