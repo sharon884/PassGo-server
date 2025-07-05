@@ -1,29 +1,122 @@
 const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
+const Ticket = require("../../models/ticketModel");
 
-const getApprovedEvents = async ( req, res ) => {
-    try {
-        const page = parseInt(req.query.page) || 1 ;
-        const limit = parseInt(req.query.limit) || 6 ;
-        const skip = ( page -1) * limit;
+const getApprovedEvents = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 6;
+    const skip = (page - 1) * limit;
 
-        const events = await Event.find({isApproved : true, advancePaid :true }).skip(skip).limit(limit)
-        const total = await Event.countDocuments({isApproved : true, advancePaid : true });
-        return res.status(STATUS_CODE.SUCCESS).json({
-            success : true,
-            message : "approved events from server fetched successfully",
-            events,
-            total,
-            page,
-            totalPages : Math.ceil(total / limit ),
-        })
-    } catch ( error ) {
-        return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-            success : false ,
-            message : "error while fetching approved events",
-        });
+    const { eventType, sortBy, category } = req.query;
+
+    const matchStage = {
+      isApproved: true,
+      advancePaid: true,
+    };
+
+    // Filter by event type
+    if (eventType && eventType !== "all") {
+      matchStage.eventType = eventType;
     }
+
+    // Filter by category (case-insensitive match)
+    if (category) {
+      matchStage.category = { $regex: new RegExp(category, "i") };
+    }
+
+    const pipeline = [
+      { $match: matchStage },
+
+      // Lookup booked tickets
+      {
+        $lookup: {
+          from: "tickets",
+          localField: "_id",
+          foreignField: "eventId",
+          as: "tickets",
+        },
+      },
+
+      // Add bookingCount and fallback price
+      {
+        $addFields: {
+          bookingCount: {
+            $size: {
+              $filter: {
+                input: "$tickets",
+                as: "ticket",
+                cond: { $eq: ["$$ticket.status", "booked"] },
+              },
+            },
+          },
+          price: {
+            $cond: [
+              { $ifNull: ["$tickets.general.price", false] },
+              "$tickets.general.price",
+              "$tickets.VIP.price",
+            ],
+          },
+        },
+      },
+
+      // Select only required fields
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          images: 1,
+          category: 1,
+          eventType: 1,
+          date: 1,
+          bookingCount: 1,
+          price: 1,
+        },
+      },
+    ];
+
+    // Apply sorting
+    switch (sortBy) {
+      case "price_low":
+        pipeline.push({ $sort: { price: 1 } });
+        break;
+      case "price_high":
+        pipeline.push({ $sort: { price: -1 } });
+        break;
+      case "most_selling":
+        pipeline.push({ $sort: { bookingCount: -1 } });
+        break;
+      case "upcoming":
+        pipeline.push({ $sort: { date: 1 } });
+        break;
+      default:
+        pipeline.push({ $sort: { createdAt: -1 } });
+    }
+
+    // Pagination
+    pipeline.push({ $skip: skip }, { $limit: limit });
+
+    // Execute aggregation
+    const events = await Event.aggregate(pipeline);
+    const total = await Event.countDocuments(matchStage);
+
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "Filtered approved events fetched successfully",
+      events,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error("Error in getApprovedEvents:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Error while fetching approved events",
+    });
+  }
 };
+
 const getEventById = async (req, res) => {
     try {
         const { id } = req.params;
