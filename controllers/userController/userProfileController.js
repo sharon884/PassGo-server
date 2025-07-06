@@ -4,15 +4,20 @@ const { comparePassword , hashPassword } = require("../../utils/hash");
 
 const getUserProfile = async (req, res) => {
   try {
-    const { email } = req.user;
+    // const { email } = req.user;
 
-    const user = await User.findOne( {email} );
+    const  userId  = req.user.id;
+   
+
+    const user = await User.findById( userId );
     if (!user) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "User not found",
       });
     }
+
+    console.log( user.hostVerificationStatus,)
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -24,6 +29,9 @@ const getUserProfile = async (req, res) => {
         mobile: user.mobile,
         profile_image : user.profile_image,
         role: user.role,
+         is_active : user. is_active,
+       hostVerificationStatus : user.hostVerificationStatus,
+       isVerified : user.isVerified,
       },
       
     });

@@ -215,6 +215,13 @@ const getEventDetails = async ( req, res ) => {
       });
     };
 
+     if ( event.advancePaid !== true ) {
+            return res.status(STATUS_CODE.BAD_REQUEST).json({
+                success : false,
+                message : "Advance payment not completed "
+            });
+        };
+
     Object.assign(event,updatedData);
     await event.save();
 

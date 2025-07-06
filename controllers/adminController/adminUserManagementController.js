@@ -3,15 +3,24 @@ const STATUS_CODE = require("../../constants/statuscodes");
 
 const getAllUser = async (req, res) => {
   try {
-    const { search = "", page = 1, limit = 10 } = req.query;
+    const { search = "", page = 1, limit = 10, role } = req.query;
 
     const query = {
-      $or: [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-        { mobile: { $regex: search, $options: "i" } },
+      $and: [
+        {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { mobile: { $regex: search, $options: "i" } },
+          ],
+        },
       ],
     };
+
+    // Only apply role filter if role is provided (not empty string)
+    if (role && role.trim() !== "") {
+      query.$and.push({ role: role.trim() });
+    }
 
     const totalUsers = await User.countDocuments(query);
     const users = await User.find(query)
@@ -28,11 +37,12 @@ const getAllUser = async (req, res) => {
   } catch (error) {
     res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: " Server error ",
+      message: "Server error",
       error: error.message,
     });
   }
 };
+
 
 const toggleBlockUser = async (req, res) => {
   try {

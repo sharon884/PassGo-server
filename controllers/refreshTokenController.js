@@ -6,6 +6,8 @@ const {
   verifyToken,
 } = require("../utils/jwt");
 const {getModelByRole} = require("../utils/getModelByRole");
+const User = require("../models/userModel");
+const Admin = require("../models/adminModel");
 
 
 
@@ -51,15 +53,19 @@ const handleRefreshToken = async (req, res) => {
     console.log(decoded.role)
    const Model =  await getModelByRole(decoded.role);
 
+   console.log("jwt hitting model ", Model);
+
     const user = await Model.findById(decoded.id);
     console.log(user.refreshToken);
-    if (!user || user.refreshToken !== refreshToken) {
+    if (!user || user. refreshToken !== refreshToken) {
       return res.status(STATUS_CODE.FORBIDDEN).json({
         success: false,
         message: "Invalid refresh token",
       });
     }
     
+
+    console.log("I think here is not getting here is 403");
     user.refreshToken = null; 
     await user.save();
 
