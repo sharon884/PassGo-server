@@ -514,7 +514,8 @@ const sendOtpForHost = async ( req, res ) => {
         //         message : "PAN details do not match the uploaded document.",
         //     });
         // }
-
+         user.panImage = panImage;
+         await user.save();
         const otp = await sendOTP(mobile);
         console.log("OTP :", otp)
         return res.status(STATUS_CODE.SUCCESS).json({

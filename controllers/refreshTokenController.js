@@ -28,8 +28,8 @@ const handleRefreshToken = async (req, res) => {
    let decoded ;
    try {
 
-   
     decoded = verifyToken(refreshToken, REFRESH_TOKEN_SECRET);
+    
   } catch ( error ) {
     if ( error.message === 'jwt expired' ) {
       return res.status(STATUS_CODE.UNAUTHORIZED).json({
@@ -50,22 +50,22 @@ const handleRefreshToken = async (req, res) => {
       });
     }
 
-    console.log(decoded.role)
+
    const Model =  await getModelByRole(decoded.role);
 
-   console.log("jwt hitting model ", Model);
+   
 
     const user = await Model.findById(decoded.id);
-    console.log(user.refreshToken);
-    if (!user || user. refreshToken !== refreshToken) {
+    console.log("sent:"+refreshToken);
+    console.log("db"+user.refreshToken)
+   
+    if (!user || user.refreshToken !== refreshToken) {
       return res.status(STATUS_CODE.FORBIDDEN).json({
         success: false,
         message: "Invalid refresh token",
       });
     }
     
-
-    console.log("I think here is not getting here is 403");
     user.refreshToken = null; 
     await user.save();
 

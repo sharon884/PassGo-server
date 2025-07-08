@@ -10,7 +10,7 @@ const razorPay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
-
+const redis = require("../../utils/redisClient");
 
 const createOrderWithoutSeats = async (req, res) => {
   try {
