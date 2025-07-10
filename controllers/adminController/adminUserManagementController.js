@@ -26,7 +26,7 @@ const getAllUser = async (req, res) => {
     const users = await User.find(query)
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .select("name email mobile role is_active");
+      .select("name email mobile role is_active isVerified hostVerificationStatus");
 
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,

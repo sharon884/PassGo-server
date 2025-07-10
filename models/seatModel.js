@@ -12,7 +12,7 @@ const seatSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ["VIP", "General"], // e.g. "VIP", "General"
+    enum: ["VIP", "general"], // e.g. "VIP", "General"
     required: true,
   },
   price: {

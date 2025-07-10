@@ -79,7 +79,7 @@ const getAllSeatsByEvent = async (req, res) => {
     })
       .select("_id seatNumber price status category lockExpiresAt ")
       .lean();
-
+    console.log(seats)
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "seats fetched successfully",

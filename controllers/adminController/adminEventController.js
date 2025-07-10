@@ -119,13 +119,17 @@ advancePaid
                 message : "Event is not eligible for apporoval",
             });
         };
-
+ console.log("event approvement by admin here event ticket status:", event.tickets.general)
         event.status = "approved",
         event.isApproved = true,
         await event.save();
 
-        await genarateSeatsForEvent(event);
-        console.log("ivde vannow ");
+         if (event.eventType === "paid_stage_with_seats") {
+      await genarateSeatsForEvent(event);
+      console.log(" Seats generated for event:", event.title);
+    } else {
+      console.log("Skipping seat generation: event is not seat-based");
+    }
     
         return res.status(STATUS_CODE.SUCCESS).json({
             success : true,

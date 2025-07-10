@@ -52,9 +52,10 @@ const createOrder = async ( req, res ) => {
       const amount = seats.reduce((acc, seat) => acc + seat.price, 0);
       const gstAmount =  + (amount * 0.18).toFixed(2);
       const totalAmount = + ( amount + gstAmount ).toFixed(2);
-          console.log("total amount", totalAmount);
+      const razorpayAmount = Math.round(totalAmount * 100);
+       
       const razorpayOrder = await razorPay.orders.create({
-        amount: totalAmount * 100,
+        amount: razorpayAmount,
         currency: "INR",
         receipt: generateOrderId(),
         payment_capture: 1,

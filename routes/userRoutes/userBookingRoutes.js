@@ -5,6 +5,6 @@ const { getUserBookings } = require("../../controllers/userController/userBookin
 const verifyToken = require("../../middlewares/verifyTokenMiddleware");
 const userOnly = require("../../middlewares/authorizedRoleMiddlewares/wrappers/userOnly");
 
-router.route("/bookings-history").get(verifyToken, userOnly, getUserBookings);
+router.route("/bookings-history").get(verifyToken, getUserBookings);
 
 module.exports = router;

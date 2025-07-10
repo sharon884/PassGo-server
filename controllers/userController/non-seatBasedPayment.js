@@ -36,11 +36,14 @@ const createOrderWithoutSeats = async (req, res) => {
 
     const ticketPrice = event.tickets?.[category]?.price || 0;
     const totalAmount = ticketPrice * quantity;
-    const gstAmount = +(totalAmount * 0.18).toFixed(2);
-    const finalAmount = +(totalAmount + gstAmount).toFixed(2);
+   const gstAmount = Math.round(totalAmount * 0.18 * 100) / 100;
+const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
+
+    const razorpayAmount = Math.round(finalAmount*100);
+    console.log(finalAmount)
 
     const razorpayOrder = await razorPay.orders.create({
-      amount: finalAmount * 100,
+       amount: razorpayAmount,                                                 //finalAmount * 100,
       currency: "INR",
       receipt: generateOrderId(),
       payment_capture: 1
@@ -71,7 +74,7 @@ const createOrderWithoutSeats = async (req, res) => {
       orderId: order._id
     });
   } catch (err) {
-    console.error("Error creating non-seat order:", err);
+    console.error("Error creating non-seat orderrrrr:", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

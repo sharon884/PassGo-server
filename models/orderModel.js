@@ -23,7 +23,7 @@ const orderSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['VIP', 'General'],
+    enum: ['VIP', 'general'],
     required: true
   },
   amount: {

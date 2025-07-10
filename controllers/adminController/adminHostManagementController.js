@@ -203,6 +203,7 @@ const approveHost = async ( req, res ) => {
         user.hostVerificationStatus = "verified";
         user.verifyRequested = false;
         user.verifyRequestedAt = null;
+        user.isVerified = true;
         await user.save();
 
         await redis.set(`userRole : ${user._id}`,"host");
