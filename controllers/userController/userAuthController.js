@@ -10,11 +10,13 @@ const {
 const sendMail = require("../../utils/sendMail");
 const OTP = require("../../models/otpModel");
 const verifyGoogleToken = require("../../utils/verifyGoogleToken");
+const generateReferralCode = require("../../utils/generateReferralCode");
 
 //User signup
 const signupUser = async (req, res) => {
   try {
-    const { name, email, mobile, password, role } = req.body;
+    const { name, email, mobile, password, role, referralCode } = req.body;
+    console.log(referralCode,"backend")
 
     const userExist = await User.findOne({ email });
     if (userExist) {
@@ -23,11 +25,31 @@ const signupUser = async (req, res) => {
       });
     }
     const hashedPassword = await hashPassword(password);
+    const referralCodeForUser = generateReferralCode();
+
+    let referredBy = null;
+
+    if ( referralCode) {
+      const referringUser = await User.findOne({ referralCode : referralCode });
+        
+      if ( !referringUser ) {
+        return res.status(STATUS_CODE.BAD_REQUEST).json({
+          message : "Invalid referral code",
+        });
+      }
+
+      referredBy = referringUser._id;   
+    }
+  
+
 
     const newUser = new User({
       name,
       email,
       mobile,
+      referralCode : referralCode,
+      referralUsed: !!referralCode,
+      referredBy: referredBy,
       password: hashedPassword,
       role,
     });

@@ -1,7 +1,7 @@
 const Seat = require("../../models/seatModel");
 const STATUS_CODE = require("../../constants/statuscodes");
 const Event = require("../../models/eventModel");
-const Ticket = require("../../models/ticketModel");
+const FreeTicket = require("../../models/freeTicketModel");
 const redis = require("../../utils/redisClient");
 const { default: mongoose } = require("mongoose");
 

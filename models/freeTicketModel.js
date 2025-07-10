@@ -1,8 +1,8 @@
-// models/ticketModel.js
+// models/freeTicketModel.js
 
 const mongoose = require('mongoose');
 
-const ticketSchema = new mongoose.Schema({
+const freeTicketSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -13,26 +13,10 @@ const ticketSchema = new mongoose.Schema({
     ref: 'Event',
     required: true,
   },
-  orderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Order',
-    required: function () {
-      return this.type === 'paid';
-    },
-  },
-  type: {
-    type: String,
-    enum: ['free', 'paid'],
-    required: true,
-  },
-  seatNumber: {
-    type: String,
-    default: null, 
-  },
   category: {
     type: String,
     enum: ['VIP', 'general'],
-    default: null, 
+    required: true,
   },
   status: {
     type: String,
@@ -51,4 +35,4 @@ const ticketSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-module.exports = mongoose.model('Ticket', ticketSchema);
+module.exports = mongoose.model('FreeTicket', freeTicketSchema);

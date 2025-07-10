@@ -1,6 +1,7 @@
+const FreeTicket = require("../../models/freeTicketModel");
 const Razorpay = require("razorpay");
 const STATUS_CODE = require("../../constants/statuscodes");
-const Order = require("../../models/orderModel");
+const PaidTicket = require("../../models/paidTicketModel");
 const User = require("../../models/userModel");
 const Event = require("../../models/eventModel");
 const Seat = require("../../models/seatModel");
@@ -80,7 +81,6 @@ const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
 };
 
 
-const Ticket = require("../../models/ticketModel");
 
 const verifyPaymentWithoutSeats = async (req, res) => {
   try {

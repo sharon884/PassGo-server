@@ -3,9 +3,10 @@ const sendMail = require("../utils/sendMail");
 const OTP = require("../models/otpModel");
 const STATUS_CODE = require("../constants/statuscodes");
 const User = require("../models/userModel");
-// const Host = require("../models/hostModel");
+const Wallet = require("../models/walletModel");
+const Transaction = require("../models/transactionModel");
 const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
-// const { getModelByRole} =  require("../utils/getModelByRole")
+const mongoose = require("mongoose");
 
 const sendOTP = async (req, res) => {
   try {
@@ -38,6 +39,7 @@ const sendOTP = async (req, res) => {
 const verifyOTP = async (req, res) => {
   try {
     const { email, userId, otp, role } = req.body;
+    console.log(email);
 
     if (!email || !userId || !otp || !role) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
@@ -72,54 +74,179 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // const Model = getModelByRole(role);
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const user = await User.findById(userId).session(session);
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(STATUS_CODE.NOT_FOUND).json({
+          message: "User not found",
+        });
+      }
+
+      const payload = {
+        id: userId,
+        email: email,
+        role: role,
+      };
+
+      const accessToken = generateAccessToken(payload);
+      const refreshToken = generateRefreshToken(payload);
+
+      user.is_active = true;
+      user.isVerified = true;
+      user.refreshToken = refreshToken;
+      await user.save({ session });
+
+      const rewardAmount = 50;
+
+      if (user.referralUsed && user.referredBy) {
+        let userWallet = await Wallet.findOne({ user: user._id }).session(
+          session
+        );
+        if (!userWallet) {
+          userWallet = new Wallet({ user: user._id, balance: rewardAmount });
+        } else {
+          userWallet.balance = userWallet.balance + rewardAmount;
+        }
+
+        userWallet.history.push({
+          type: "credit",
+          amount: rewardAmount,
+          reason: "Referral Reward",
+          initiatedBy: "system",
+          notes: `Reward for using referral`,
+        });
+
+        await userWallet.save({ session });
+
+        await Transaction.create(
+          [
+            {
+              userId: user._id,
+              amount: rewardAmount,
+              type: "referral_reward",
+              method: "referral",
+              role: "user",
+              description: "Referral reward for signup",
+            },
+          ],
+          { session }
+        );
+
+        let refWallet = await Wallet.findOne({ user: user.referredBy }).session(
+          session
+        );
+        if (!refWallet) {
+          refWallet = new Wallet({
+            user: user.referredBy,
+            balance: rewardAmount,
+          });
+        } else {
+          refWallet.balance = refWallet.balance + rewardAmount;
+        }
+
+        refWallet.history.push({
+          type: "credit",
+          amount: rewardAmount,
+          reason: "Referral Bonus",
+          initiatedBy: "system",
+          notes: `Reward for referring user ${user.name}`,
+        });
+
+        await refWallet.save({ session });
+
+        await Transaction.create(
+          [
+            {
+              userId: user.referredBy,
+              amount: rewardAmount,
+              type: "referral_reward",
+              method: "referral",
+              role: "user",
+              description: `Referral bonus for refering ${user.name}`,
+            },
+          ],
+          { session }
+        );
+      } else {
+        let wallet = await Wallet.findOne({ user: user._id }).session(session);
+        if (!wallet) {
+          wallet = new Wallet({ user: user._id, balance: 0 });
+          await wallet.save({ session });
+        }
+      }
+
+      await OTP.deleteMany({ user_id: userId }).session(session);
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      let referralMessage = "";
+
+      if (user.referralUsed && user.referredBy) {
+        referralMessage = " and referral rewards have been credited.";
+      } else {
+        referralMessage = ".";
+      }
+
+      return res.status(STATUS_CODE.SUCCESS).json({
+        success: true,
+        message: "OTP verified successfully" + referralMessage,
+      });
 
 
-    const payload = {
-      id: userId,
-      email : email,
-      role : role,
-    };
-
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-
-    
-    await User.findByIdAndUpdate(userId, { 
-      is_active: true, 
-      refreshToken: refreshToken 
-    });
-
-    
-    await OTP.deleteMany({ user_id: userId });
-
-    res.cookie( "accessToken", accessToken, {
-      httpOnly : true,
-      secure : true,
-      sameSite : "strict",
-      maxAge :15 * 60 * 1000,
-    });
-
-    res.cookie( "refreshToken", refreshToken, {
-      httpOnly : true,
-      secure : true,
-      sameSite : "strict",
-      maxAge :30 * 24 * 60 * 60 * 1000,
-    })
-
-    return res.status(STATUS_CODE.SUCCESS).json({
-      success: true,
-      message: " OTP verified successfully",
-    });
+    } catch (transactionError) {
+      await session.abortTrasction();
+      session.endSession();
+      console.log("Transaction Error:", transactionError);
+      return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        message: "Failed during referral reward logic",
+      });
+    }
   } catch (error) {
-    console.log("OTP verification error:", error);
+    console.error("OTP verification error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Something went wrong while verifying OTP ",
+      message: "Something went wrong while verifying OTP",
     });
   }
 };
+
+//     await User.findByIdAndUpdate(userId, {
+//       is_active: true,
+//       refreshToken: refreshToken,
+//       isVerified : true,
+//     });
+
+//     await OTP.deleteMany({ user_id: userId });
+
+//   } catch (error) {
+//     console.log("OTP verification error:", error);
+//     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+//       success: false,
+//       message: "Something went wrong while verifying OTP ",
+//     });
+//   }
+// };
 
 const resendOTP = async (req, res) => {
   try {
@@ -172,28 +299,3 @@ module.exports = {
   verifyOTP,
   resendOTP,
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

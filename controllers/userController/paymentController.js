@@ -1,6 +1,6 @@
 const Razorpay = require("razorpay");
 const STATUS_CODE = require("../../constants/statuscodes");
-const Order = require("../../models/orderModel");
+const PaidTicket = require("../../models/paidTicketModel");
 const User = require("../../models/userModel");
 const Event = require("../../models/eventModel");
 const Seat = require("../../models/seatModel");
@@ -61,7 +61,7 @@ const createOrder = async ( req, res ) => {
         payment_capture: 1,
       });
  console.log("razorpay order", razorpayOrder);
- const order = new Order({
+ const paidTicket = new PaidTicket({
    userId,
    eventId,
    seats: seats.map((seat) => ({
@@ -76,7 +76,7 @@ const createOrder = async ( req, res ) => {
     status : "created",
   });
   
-  await order.save();
+  await paidTicket.save();
   
       return res.status(STATUS_CODE.SUCCESS).json({
         success: true,
@@ -85,7 +85,7 @@ const createOrder = async ( req, res ) => {
         amount : totalAmount*100,
         currency : "INR",
         key : process.env.RAZORPAY_KEY_ID,
-        orderId : order._id,
+        orderId : paidTicket._id,
       });
       
   } catch ( error ) {
@@ -126,31 +126,31 @@ const verifyPayment = async ( req, res ) => {
       });
     }
 
-    const order = await Order.findById(orderId);
-    if ( !order ) {
+    const paidTicket = await PaidTicket.findById(orderId);
+    if ( !paidTicket ) {
      return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Order not found", 
      })
 };
-if (order.status === "paid") {
+if (paidTicket.status === "paid") {
   return res.status(STATUS_CODE.CONFLICT).json({
     success: true,
     message: "Order already marked as paid",
   });
 }
-order.status = "paid";
-order.razorpayPaymentId = razorpayPaymentId;
-order.razorpaySignature = razorpaySignature;
-await order.save();
+paidTicket.status = "paid";
+paidTicket.razorpayPaymentId = razorpayPaymentId;
+paidTicket.razorpaySignature = razorpaySignature;
+await paidTicket.save();
 
-const seatNumbers = order.seats.map((seat) => seat.seatNumber).flat();
+const seatNumbers = paidTicket.seats.map((seat) => seat.seatNumber).flat();
 console.log("Seat Numbers:", seatNumbers);
 
 
 if ( seatNumbers.length > 0 ) {
  await Seat.updateMany({
-  event : order.eventId,
+  event : paidTicket.eventId,
   seatNumber : { $in : seatNumbers },
 },
  {
@@ -166,7 +166,7 @@ return res.status(STATUS_CODE.SUCCESS).json({
   success: true,
   message: "Payment verified successfully",
   orderId : orderId,
-  amount : order.amount,
+  amount : paidTicket.amount,
   status : "booked",
 });
 

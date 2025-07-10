@@ -1,6 +1,6 @@
 const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
-const Ticket = require("../../models/ticketModel");
+const freeTickets = require("../../models/freeTicketModel");
 
 const getApprovedEvents = async (req, res) => {
   try {

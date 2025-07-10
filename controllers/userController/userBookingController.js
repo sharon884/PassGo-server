@@ -1,7 +1,7 @@
-const Order = require("../../models/orderModel");
+const PaidTicket = require("../../models/paidTicketModel");
 const STATUS_CODE = require("../../constants/statuscodes");
 const Event = require("../../models/eventModel");
-const Ticket = require("../../models/ticketModel");
+const FreeTicket = require("../../models/freeTicketModel");
 
 const getUserBookings = async (req, res) => {
   try {
@@ -9,16 +9,16 @@ const getUserBookings = async (req, res) => {
     const userId = req.user.id;
 
     // ✅ Step 2: Fetch orders (paid WITH seat)
-    const orders = await Order.find({ userId }).lean();
+    const paidTickets = await PaidTicket.find({ userId }).lean();
 
     // ✅ Step 3: Fetch tickets (free and paid WITHOUT seat)
-    const tickets = await Ticket.find({ userId }).lean();
+    const freeTickets = await FreeTicket.find({ userId }).lean();
 
     // ✅ Step 4: Collect all unique eventIds
     const eventIds = [
       ...new Set([
-        ...orders.map(order => order.eventId.toString()),
-        ...tickets.map(ticket => ticket.eventId.toString()),
+        ...orders.map(order => paidTickets.eventId.toString()),
+        ...tickets.map(ticket => freeTickets.eventId.toString()),
       ])
     ];
 
@@ -30,13 +30,13 @@ const getUserBookings = async (req, res) => {
     });
 
     // ✅ Step 6: Attach event details to orders
-    const ordersWithEvent = orders.map(order => ({
+    const ordersWithEvent = paidTickets.map(order => ({
       ...order,
       event: eventMap[order.eventId.toString()] || null,
     }));
 
     // ✅ Step 7: Attach event details to tickets
-    const ticketsWithEvent = tickets.map(ticket => ({
+    const ticketsWithEvent = freeTickets.map(ticket => ({
       ...ticket,
       event: eventMap[ticket.eventId.toString()] || null,
     }));

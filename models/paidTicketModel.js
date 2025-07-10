@@ -1,6 +1,8 @@
+// models/paidTicketModel.js
+
 const mongoose = require('mongoose');
 
-const orderSchema = new mongoose.Schema({
+const paidTicketSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -13,7 +15,7 @@ const orderSchema = new mongoose.Schema({
   },
   seats: [
     {
-      seatNumber: [String],
+      seatNumber: [String], 
       price: Number
     }
   ],
@@ -57,4 +59,4 @@ const orderSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Order', orderSchema);
+module.exports = mongoose.model('PaidTicket', paidTicketSchema);
