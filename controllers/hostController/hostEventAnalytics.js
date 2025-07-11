@@ -27,6 +27,17 @@ const getEventBookingSummary = async (req, res) => {
     let ticketsSold = 0;
     let totalRevenue = 0;
     let dailySales = [];
+     const ticketStats = {};
+
+
+      for (const category in event.tickets) {
+      const cat = event.tickets[category];
+      ticketStats[category] = {
+        total: cat.quantity,
+        sold: 0,
+        remaining: cat.quantity
+      };
+    }
 
     const eventType = event.eventType.trim();
 
@@ -38,6 +49,18 @@ const getEventBookingSummary = async (req, res) => {
       });
 
       ticketsSold = tickets.length;
+
+        for (const ticket of tickets) {
+        if (ticketStats[ticket.category]) {
+          ticketStats[ticket.category].sold += 1;
+        }
+      }
+
+      for (const category in ticketStats) {
+        ticketStats[category].remaining =
+          ticketStats[category].total - ticketStats[category].sold;
+      }
+
 
       dailySales = await FreeTicket.aggregate([
         {
@@ -69,13 +92,28 @@ const getEventBookingSummary = async (req, res) => {
             (sum, seatBlock) => sum + (seatBlock.seatNumber?.length || 0),
             0
           );
+
           ticketsSold += seatCount;
+          
+          if (ticketStats[ticket.category]) {
+            ticketStats[ticket.category].sold += seatCount;
+          }
+
         } else {
           ticketsSold += ticket.quantity;
+             if (ticketStats[ticket.category]) {
+            ticketStats[ticket.category].sold += ticket.quantity;
+          }
         }
 
         totalRevenue += ticket.amount;
       }
+
+        for (const category in ticketStats) {
+        ticketStats[category].remaining =
+          ticketStats[category].total - ticketStats[category].sold;
+      } 
+
 
       if (eventType ==="paid_stage_with_seats") {
         dailySales = await PaidTicket.aggregate([
@@ -130,8 +168,8 @@ const getEventBookingSummary = async (req, res) => {
         ]);
       }
     }
-
-    const offer = await Offer.findOne({ eventId });
+    console.log(dailySales)
+    const offer = await Offer.findOne({ eventId, isActive : true });
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -144,8 +182,10 @@ const getEventBookingSummary = async (req, res) => {
           category: event.category,
           location: event.location,
           images: event.images,
-          description: event.description
+          description: event.description,
+          status: event.status,
         },
+        ticketStats,
         ticketsSold,
         totalRevenue,
         dailySales,

@@ -128,7 +128,7 @@ const getEventById = async (req, res) => {
                 message: "Event not found or not approved"
             });
         }
-
+        console.log(event.tickets.general)
         return res.status(STATUS_CODE.SUCCESS).json({
             success: true,
             message: "Event fetched successfully",

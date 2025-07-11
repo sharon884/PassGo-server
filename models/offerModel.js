@@ -6,7 +6,6 @@ const offerSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",
       required: [true, "Event ID is required"],
-      unique: true, // Only one offer per event
     },
     discountType: {
       type: String,
@@ -24,7 +23,7 @@ const offerSchema = new mongoose.Schema(
             return v > 0;
           }
         },
-        message: function (props) {
+        message: function () {
           return this.discountType === "percentage"
             ? `Percentage discount must be between 1 and 100`
             : `Flat discount must be greater than 0`;
@@ -41,11 +40,21 @@ const offerSchema = new mongoose.Schema(
         message: "Expiry date must be in the future",
       },
     },
+    minTickets: {
+      type: Number,
+      required: [true, "Minimum ticket quantity is required"],
+      min: [1, "Minimum tickets must be at least 1"],
+      default: 1,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Host", // or "Admin" depending on your use-case
+      ref: "User", 
       required: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true, // true = offer is active
+    }
   },
   { timestamps: true }
 );
