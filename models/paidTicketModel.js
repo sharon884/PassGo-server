@@ -44,7 +44,7 @@ const paidTicketSchema = new mongoose.Schema({
   razorpaySignature: String,
   status: {
     type: String,
-    enum: ['created', 'paid', 'failed'],
+    enum: ['created', 'paid', 'failed', 'cancelled'],
     default: 'created'
   },
   paymentMethod: {
