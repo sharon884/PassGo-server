@@ -23,10 +23,11 @@ const freeTicketSchema = new mongoose.Schema({
     enum: ['booked', 'used', 'cancelled'],
     default: 'booked',
   },
-  qrCode: {
-    type: String,
-    default: null,
-  },
+ eticketUrl: {
+  type: [String], 
+  default: [],
+},
+
   bookedAt: {
     type: Date,
     default: Date.now,

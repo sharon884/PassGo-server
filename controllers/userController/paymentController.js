@@ -10,6 +10,8 @@ const razorPay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
+const generateQrCodeImage  = require("../../utils/generateETicket");
+
 
 
 const createOrder = async ( req, res ) => {
@@ -159,7 +161,31 @@ if ( seatNumbers.length > 0 ) {
   }
  }
 ); 
+};
+const event = await Event.findById(paidTicket.eventId);
+const user = await User.findById(paidTicket.userId);
+
+const eTicketUrls = [];
+
+for (let i = 0; i < paidTicket.seats.length; i++) {
+  const seat = paidTicket.seats[i];
+  const seatNumber = seat.seatNumber[0]; // assuming seatNumber is an array with 1 value
+
+  const qrData = `${paidTicket._id}_${user._id}_${seatNumber}`;
+
+  const pdfUrl = await generateQrCodeImage({
+    ticketId: `${paidTicket._id}-${seatNumber}`,
+    event,
+    user,
+    qrData,
+  });
+
+  eTicketUrls.push(pdfUrl);
 }
+
+paidTicket.eticketUrl = eTicketUrls;
+await paidTicket.save();
+
 
 
 return res.status(STATUS_CODE.SUCCESS).json({

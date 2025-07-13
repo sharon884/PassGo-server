@@ -12,6 +12,9 @@ const razorPay = new Razorpay({
 });
 const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const redis = require("../../utils/redisClient");
+const generateETicket  = require("../../utils/generateETicket");
+
+
 
 const createOrderWithoutSeats = async (req, res) => {
   try {
@@ -51,7 +54,7 @@ const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
     });
 
     // 3. Create Order
-    const order = new Order({
+    const order = new PaidTicket({
       userId,
       eventId,
       category,
@@ -107,7 +110,7 @@ const verifyPaymentWithoutSeats = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid signature" });
     }
 
-    const order = await Order.findById(orderId);
+    const order = await PaidTicket.findById(orderId);
     if (!order || order.status === "paid") {
       return res.status(404).json({ success: false, message: "Order not found or already paid" });
     }
@@ -116,6 +119,26 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     order.razorpayPaymentId = razorpayPaymentId;
     order.razorpaySignature = razorpaySignature;
     await order.save();
+
+    const event = await Event.findById(order.eventId);
+const user = await User.findById(userId);
+
+const eTicketUrls = [];
+
+for (let i = 0; i < order.quantity; i++) {
+  const qrData = `${order._id}_${userId}_${i + 1}`;
+  const pdfUrl = await generateETicket({
+    ticketId: `${order._id}-${i + 1}`, // unique ID
+    event,
+    user,
+    qrData
+  });
+
+  eTicketUrls.push(pdfUrl);
+}
+
+order.eticketUrl = eTicketUrls;
+await order.save();
 
     // Book tickets permanently
     const tickets = [];

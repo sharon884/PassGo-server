@@ -4,6 +4,7 @@ const Event = require("../../models/eventModel");
 const FreeTicket = require("../../models/freeTicketModel");
 const redis = require("../../utils/redisClient");
 const { default: mongoose } = require("mongoose");
+const generateETicket = require("../../utils/generateETicket")
 
 //Fetch tickets types and price for selecting users
 const getTicketPlans = async (req, res) => {
@@ -365,7 +366,7 @@ const bookFreeTicket = async (req, res) => {
     }
 
     // 2. Check already booked
-    const alreadyBooked = await Ticket.findOne({
+    const alreadyBooked = await FreeTicket.findOne({
       userId,
       eventId,
       type: "free",
@@ -377,7 +378,7 @@ const bookFreeTicket = async (req, res) => {
     }
 
     // 3. Check availability
-    const bookedCount = await Ticket.countDocuments({
+    const bookedCount = await FreeTicket.countDocuments({
       eventId,
       category,
       type: "free",
@@ -395,13 +396,27 @@ const bookFreeTicket = async (req, res) => {
     }
 
     // 4. Create Ticket
-    const ticket = await Ticket.create({
+    const ticket = await FreeTicket.create({
       userId,
       eventId,
       category,
       type: "free",
       status: "booked",
     });
+
+    const user = await User.findById(userId);
+const qrData = `${ticket._id}_${userId}_${eventId}`;
+
+const pdfUrl = await generateETicket({
+  ticketId: ticket._id,
+  event,
+  user,
+  qrData,
+});
+
+ticket.eticketUrl = pdfUrl;
+await ticket.save();
+
 
     return res.status(201).json({ message: "Ticket booked", ticket });
   } catch (err) {
