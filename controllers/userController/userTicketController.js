@@ -4,7 +4,9 @@ const Event = require("../../models/eventModel");
 const FreeTicket = require("../../models/freeTicketModel");
 const redis = require("../../utils/redisClient");
 const { default: mongoose } = require("mongoose");
-const generateETicket = require("../../utils/generateETicket")
+const generateETicket = require("../../utils/generateETicket");
+const PaidTicket = require("../../models/paidTicketModel");
+const User = require("../../models/userModel");
 
 //Fetch tickets types and price for selecting users
 const getTicketPlans = async (req, res) => {
@@ -308,7 +310,7 @@ const getEventTicketInfo = async (req, res) => {
     for (const category of categories) {
       const total = event.tickets?.[category]?.quantity || 0;
 
-      const booked = await Ticket.countDocuments({
+      const booked = await PaidTicket.countDocuments({
         eventId,
         category,
         type: event.eventType === "free" ? "free" : "paid",
@@ -317,7 +319,7 @@ const getEventTicketInfo = async (req, res) => {
 
       const lockKeys = await redis.keys(`lock:${eventId}:${category}:*`);
       const locked = lockKeys.length;
-
+        console.log("haiiii")
       const available = total - booked - locked;
 
       ticketStats[category] = {
@@ -331,7 +333,7 @@ const getEventTicketInfo = async (req, res) => {
     // Check if user already has a free ticket (for blocking rebooking)
     let userHasTicket = false;
     if (event.eventType === "free") {
-      const userTicket = await Ticket.findOne({
+      const userTicket = await PaidTicket.findOne({
         userId,
         eventId,
         type: "free",
@@ -446,7 +448,7 @@ const lockPaidTickets = async (req, res) => {
 
     const total = event.tickets?.[category]?.quantity || 0;
 
-    const bookedCount = await Ticket.countDocuments({
+    const bookedCount = await PaidTicket.countDocuments({
       eventId,
       category,
       type: "paid",

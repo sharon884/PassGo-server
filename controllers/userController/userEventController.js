@@ -1,6 +1,7 @@
 const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
-const freeTickets = require("../../models/freeTicketModel");
+const FreeTickets = require("../../models/freeTicketModel");
+const Offer  = require("../../models/offerModel");
 
 const getApprovedEvents = async (req, res) => {
   try {
@@ -128,11 +129,14 @@ const getEventById = async (req, res) => {
                 message: "Event not found or not approved"
             });
         }
-        console.log(event.tickets.general)
+        
+        const offer = await Offer.findOne({ eventId : id, isActive : true  });
+        console.log(offer)
         return res.status(STATUS_CODE.SUCCESS).json({
             success: true,
             message: "Event fetched successfully",
             event,
+            offer,
         });
     } catch (error) {
         console.log("Event fetching failed", error);

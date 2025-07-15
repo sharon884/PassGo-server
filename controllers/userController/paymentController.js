@@ -11,7 +11,7 @@ const razorPay = new Razorpay({
 });
 const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const generateQrCodeImage  = require("../../utils/generateETicket");
-
+const Transaction = require("../../models/transactionModel");
 
 
 const createOrder = async ( req, res ) => {
@@ -169,7 +169,7 @@ const eTicketUrls = [];
 
 for (let i = 0; i < paidTicket.seats.length; i++) {
   const seat = paidTicket.seats[i];
-  const seatNumber = seat.seatNumber[0]; // assuming seatNumber is an array with 1 value
+  const seatNumber = seat.seatNumber[0]; 
 
   const qrData = `${paidTicket._id}_${user._id}_${seatNumber}`;
 
@@ -185,6 +185,18 @@ for (let i = 0; i < paidTicket.seats.length; i++) {
 
 paidTicket.eticketUrl = eTicketUrls;
 await paidTicket.save();
+
+await Transaction.create({
+  userId: user._id,
+  eventId: event._id,
+  orderId: paidTicket._id,
+  amount: paidTicket.amount,
+  type: "payment",
+  method: "razorpay",
+  role: "user",
+  walletType: "user",
+  description: `Seat booking for event: ${event.title}`,
+});
 
 
 

@@ -12,9 +12,8 @@ const razorPay = new Razorpay({
 });
 const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const redis = require("../../utils/redisClient");
-const generateETicket  = require("../../utils/generateETicket");
-
-
+const generateETicket = require("../../utils/generateETicket");
+const Transaction = require("../../models/transactionModel");
 
 const createOrderWithoutSeats = async (req, res) => {
   try {
@@ -22,7 +21,9 @@ const createOrderWithoutSeats = async (req, res) => {
     const userId = req.user.id;
 
     if (!eventId || !category || !quantity || !paymentMethod) {
-      return res.status(400).json({ success: false, message: "Missing fields" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing fields" });
     }
 
     // 1. Check event
@@ -35,22 +36,24 @@ const createOrderWithoutSeats = async (req, res) => {
     const userLockKey = `lock:${eventId}:${category}:${userId}`;
     const lockData = await redis.get(userLockKey);
     if (!lockData) {
-      return res.status(400).json({ success: false, message: "Ticket not locked or expired" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Ticket not locked or expired" });
     }
 
     const ticketPrice = event.tickets?.[category]?.price || 0;
     const totalAmount = ticketPrice * quantity;
-   const gstAmount = Math.round(totalAmount * 0.18 * 100) / 100;
-const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
+    const gstAmount = Math.round(totalAmount * 0.18 * 100) / 100;
+    const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
 
-    const razorpayAmount = Math.round(finalAmount*100);
-    console.log(finalAmount)
+    const razorpayAmount = Math.round(finalAmount * 100);
+    console.log(finalAmount);
 
     const razorpayOrder = await razorPay.orders.create({
-       amount: razorpayAmount,                                                 //finalAmount * 100,
+      amount: razorpayAmount, //finalAmount * 100,
       currency: "INR",
       receipt: generateOrderId(),
-      payment_capture: 1
+      payment_capture: 1,
     });
 
     // 3. Create Order
@@ -63,10 +66,22 @@ const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
       gstAmount,
       razorpayOrderId: razorpayOrder.id,
       paymentMethod,
-      status: "created"
+      status: "created",
     });
 
     await order.save();
+
+    await Transaction.create({
+      userId: userId,
+      eventId: event._id,
+      orderId: order._id,
+      amount: order.amount,
+      type: "payment",
+      method: "razorpay",
+      role: "user",
+      walletType: "user",
+      description: `Ticket purchase for event: ${event.title}`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -75,7 +90,7 @@ const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
       amount: finalAmount * 100,
       currency: "INR",
       key: process.env.RAZORPAY_KEY_ID,
-      orderId: order._id
+      orderId: order._id,
     });
   } catch (err) {
     console.error("Error creating non-seat orderrrrr:", err);
@@ -83,20 +98,21 @@ const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
   }
 };
 
-
-
 const verifyPaymentWithoutSeats = async (req, res) => {
   try {
-    const {
-      orderId,
-      razorpayOrderId,
-      razorpayPaymentId,
-      razorpaySignature,
-    } = req.body;
+    const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } =
+      req.body;
     const userId = req.user.id;
 
-    if (!orderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-      return res.status(400).json({ success: false, message: "Missing payment fields" });
+    if (
+      !orderId ||
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing payment fields" });
     }
 
     const isValid = verifyRazorpaySignature(
@@ -107,12 +123,16 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     );
 
     if (!isValid) {
-      return res.status(400).json({ success: false, message: "Invalid signature" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid signature" });
     }
 
     const order = await PaidTicket.findById(orderId);
     if (!order || order.status === "paid") {
-      return res.status(404).json({ success: false, message: "Order not found or already paid" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found or already paid" });
     }
 
     order.status = "paid";
@@ -121,38 +141,52 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     await order.save();
 
     const event = await Event.findById(order.eventId);
-const user = await User.findById(userId);
+    const user = await User.findById(userId);
 
-const eTicketUrls = [];
+    const eTicketUrls = [];
 
-for (let i = 0; i < order.quantity; i++) {
-  const qrData = `${order._id}_${userId}_${i + 1}`;
-  const pdfUrl = await generateETicket({
-    ticketId: `${order._id}-${i + 1}`, // unique ID
-    event,
-    user,
-    qrData
-  });
-
-  eTicketUrls.push(pdfUrl);
-}
-
-order.eticketUrl = eTicketUrls;
-await order.save();
-
-    // Book tickets permanently
-    const tickets = [];
     for (let i = 0; i < order.quantity; i++) {
-      tickets.push({
-        userId,
-        eventId: order.eventId,
-        category: order.category,
-        type: "paid",
-        status: "booked"
+      const qrData = `${order._id}_${userId}_${i + 1}`;
+      const pdfUrl = await generateETicket({
+        ticketId: `${order._id}-${i + 1}`, // unique ID
+        event,
+        user,
+        qrData,
       });
+
+      eTicketUrls.push(pdfUrl);
     }
 
-    await Ticket.insertMany(tickets);
+    order.eticketUrl = eTicketUrls;
+    await order.save();
+
+
+
+    // // Book tickets permanently
+    // const tickets = [];
+    // for (let i = 0; i < order.quantity; i++) {
+    //   tickets.push({
+    //     userId,
+    //     eventId: order.eventId,
+    //     category: order.category,
+    //     type: "paid",
+    //     status: "booked",
+    //   });
+    // }
+
+    // await PaidTicket.insertMany(tickets);
+
+    await Transaction.create({
+  userId: userId,
+  eventId: event._id,
+  orderId: order._id,
+  amount: order.amount,
+  type: "payment",
+  method: "razorpay",
+  role: "user",
+  walletType: "user",
+  description: `Ticket purchase for event: ${event.title}`
+});
 
     // Unlock Redis
     const redisKey = `lock:${order.eventId}:${order.category}:${userId}`;
@@ -162,7 +196,7 @@ await order.save();
       success: true,
       message: "Payment verified and tickets booked",
       orderId: order._id,
-      ticketCount: order.quantity
+      ticketCount: order.quantity,
     });
   } catch (err) {
     console.error("Error verifying non-seat payment:", err);
@@ -170,8 +204,7 @@ await order.save();
   }
 };
 
-
 module.exports = {
-    createOrderWithoutSeats,
-    verifyPaymentWithoutSeats,
-}
+  createOrderWithoutSeats,
+  verifyPaymentWithoutSeats,
+};

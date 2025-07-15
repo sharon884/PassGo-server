@@ -130,12 +130,12 @@ const cancelPaidTickets = async ( req, res ) => {
             }
 
             wallet.balance += refundAmount;
-            wallet.history.push({
-                type : "credit",
-                amount : refundAmount,
-                reason : `Reason for cancelled ticket (${ticket.category})`,
-                eventId : ticket.eventId,
-            });
+            // wallet.history.push({
+            //     type : "credit",
+            //     amount : refundAmount,
+            //     reason : `Reason for cancelled ticket (${ticket.category})`,
+            //     eventId : ticket.eventId,
+            // });
 
             await wallet.save({ session });
 
@@ -146,9 +146,11 @@ const cancelPaidTickets = async ( req, res ) => {
                 amount : refundAmount,
                 type : "refund",
                 method : "wallet",
+                 walletType: "user",
                 role : "user",
                 status : "success",
-                description : ` Refund issued (${refundPercent *100}%)`
+                description : ` Refund issued (${refundPercent *100}%)`,
+                  balanceAfterTransaction: wallet.balance,
             }], { session });
 
             if ( event.eventType === "paid_stage_with_seats" && ticket.seats?.length ) {
