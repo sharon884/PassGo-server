@@ -14,6 +14,10 @@ const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const redis = require("../../utils/redisClient");
 const generateETicket = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
+const Offer = require("../../models/offerModel");
+
+
+
 
 const createOrderWithoutSeats = async (req, res) => {
   try {
@@ -42,9 +46,35 @@ const createOrderWithoutSeats = async (req, res) => {
     }
 
     const ticketPrice = event.tickets?.[category]?.price || 0;
-    const totalAmount = ticketPrice * quantity;
-    const gstAmount = Math.round(totalAmount * 0.18 * 100) / 100;
-    const finalAmount = Math.round((totalAmount + gstAmount) * 100) / 100;
+    let baseAmount = ticketPrice * quantity;
+    let offerDetails = null;
+    let discountedAmount = baseAmount;
+
+    // Check for applicable offer
+    const offer = await Offer.findOne({
+      eventId,
+      isActive: true,
+      expiryDate: { $gt: new Date() },
+    });
+
+    if (offer && quantity >= offer.minTickets) {
+      if (offer.discountType === "percentage") {
+        discountedAmount -= (baseAmount * offer.value) / 100;
+      } else if (offer.discountType === "flat") {
+        discountedAmount -= offer.value;
+      }
+
+      discountedAmount = Math.max(discountedAmount, 0); // no negatives
+
+      offerDetails = {
+        offerId: offer._id,
+        discountType: offer.discountType,
+        value: offer.value,
+      };
+    }
+
+    const gstAmount = Math.round(discountedAmount * 0.18 * 100) / 100;
+    const finalAmount = Math.round((discountedAmount + gstAmount) * 100) / 100;
 
     const razorpayAmount = Math.round(finalAmount * 100);
     console.log(finalAmount);
@@ -58,16 +88,19 @@ const createOrderWithoutSeats = async (req, res) => {
 
     // 3. Create Order
     const order = new PaidTicket({
-      userId,
-      eventId,
-      category,
-      quantity,
-      amount: finalAmount,
-      gstAmount,
-      razorpayOrderId: razorpayOrder.id,
-      paymentMethod,
-      status: "created",
-    });
+  userId,
+  eventId,
+  category,
+  quantity,
+  amount: baseAmount, // before discount
+  gstAmount,
+  finalAmount,         // after offer + gst
+  offerApplied: offerDetails,
+  razorpayOrderId: razorpayOrder.id,
+  paymentMethod,
+  status: "created",
+});
+
 
     await order.save();
 
@@ -75,7 +108,7 @@ const createOrderWithoutSeats = async (req, res) => {
       userId: userId,
       eventId: event._id,
       orderId: order._id,
-      amount: order.amount,
+      amount: order.finalAmount,
       type: "payment",
       method: "razorpay",
       role: "user",
@@ -160,8 +193,6 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     order.eticketUrl = eTicketUrls;
     await order.save();
 
-
-
     // // Book tickets permanently
     // const tickets = [];
     // for (let i = 0; i < order.quantity; i++) {
@@ -177,16 +208,16 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     // await PaidTicket.insertMany(tickets);
 
     await Transaction.create({
-  userId: userId,
-  eventId: event._id,
-  orderId: order._id,
-  amount: order.amount,
-  type: "payment",
-  method: "razorpay",
-  role: "user",
-  walletType: "user",
-  description: `Ticket purchase for event: ${event.title}`
-});
+      userId: userId,
+      eventId: event._id,
+      orderId: order._id,
+      amount: order.finalAmount,
+      type: "payment",
+      method: "razorpay",
+      role: "user",
+      walletType: "user",
+      description: `Ticket purchase for event: ${event.title}`,
+    });
 
     // Unlock Redis
     const redisKey = `lock:${order.eventId}:${order.category}:${userId}`;

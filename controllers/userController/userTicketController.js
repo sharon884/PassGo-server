@@ -7,6 +7,8 @@ const { default: mongoose } = require("mongoose");
 const generateETicket = require("../../utils/generateETicket");
 const PaidTicket = require("../../models/paidTicketModel");
 const User = require("../../models/userModel");
+const Offer = require("../../models/offerModel");
+
 
 //Fetch tickets types and price for selecting users
 const getTicketPlans = async (req, res) => {
@@ -333,7 +335,7 @@ const getEventTicketInfo = async (req, res) => {
     // Check if user already has a free ticket (for blocking rebooking)
     let userHasTicket = false;
     if (event.eventType === "free") {
-      const userTicket = await PaidTicket.findOne({
+      const userTicket = await FreeTicket.findOne({
         userId,
         eventId,
         type: "free",
@@ -342,16 +344,38 @@ const getEventTicketInfo = async (req, res) => {
       userHasTicket = !!userTicket;
     }
 
-    return res.json({
+
+  
+    const offer = await Offer.findOne({
+      eventId,
+      isActive: true,
+      expiryDate: { $gte: new Date() }
+    }).lean();
+
+    let offerDetails = null;
+    if (offer) {
+      offerDetails = {
+        offerId: offer._id,
+        discountType: offer.discountType,   // "percentage" or "flat"
+        value: offer.value,
+        minAmount: offer.minAmount || 0,
+        maxDiscount: offer.maxDiscount || null,
+        expiryDate: offer.expiryDate,
+      };
+    }
+
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
       eventId,
       type: event.eventType,
       seatSelection: event.eventType === "paid_stage_with_seats",
       ticketStats,
-      userHasTicket
+      userHasTicket,
+      offer: offerDetails,
     });
   } catch (err) {
     console.error("Error in getEventTicketInfo:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({ message: "Server error" });
   }
 };
 

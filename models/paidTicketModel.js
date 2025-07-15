@@ -37,6 +37,22 @@ const paidTicketSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    finalAmount: {
+      type: Number,
+      required: true, // amount after applying discount and GST
+    },
+
+    offerApplied: {
+      offerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Offer",
+      },
+      discountType: {
+        type: String,
+        enum: ["percentage", "flat"],
+      },
+      value: Number,
+    },
     razorpayOrderId: {
       type: String,
       required: true,
@@ -59,10 +75,9 @@ const paidTicketSchema = new mongoose.Schema(
       default: "not_requested",
     },
     eticketUrl: {
-  type: [String], 
-  default: [],
-},
-
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
