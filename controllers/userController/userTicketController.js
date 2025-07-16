@@ -539,6 +539,74 @@ const unlockPaidTickets = async (req, res) => {
 };
 
 
+const getCheckoutDetails = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { seatIds } = req.body;
+
+    if (!eventId || !seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Event ID and seat IDs are required",
+      });
+    }
+
+    const seats = await Seat.find({
+      _id: { $in: seatIds },
+      event: eventId,
+    }).lean();
+
+    if (seats.length !== seatIds.length) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Some seats not found or do not belong to the event",
+      });
+    }
+
+    const baseAmount = seats.reduce((acc, seat) => acc + seat.price, 0);
+
+    // Fetch active offer
+    const offer = await Offer.findOne({
+      eventId,
+      isActive: true,
+      expiryDate: { $gte: new Date() },
+    }).lean();
+
+    let discount = 0;
+    if (offer && baseAmount >= (offer.minAmount || 0)) {
+      if (offer.discountType === "percentage") {
+        discount = (baseAmount * offer.value) / 100;
+        if (offer.maxDiscount) {
+          discount = Math.min(discount, offer.maxDiscount);
+        }
+      } else if (offer.discountType === "flat") {
+        discount = offer.value;
+      }
+    }
+
+    const amountAfterDiscount = baseAmount - discount;
+    const gst = +(amountAfterDiscount * 0.18).toFixed(2);
+    const totalAmount = +(amountAfterDiscount + gst).toFixed(2);
+
+    res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      seats,
+      subtotal: baseAmount,
+      discount: +discount.toFixed(2),
+      gst,
+      totalAmount,
+      offerApplied: !!offer,
+    });
+  } catch (error) {
+    console.log("Error in getCheckoutDetails:", error);
+    res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Error calculating checkout details",
+    });
+  }
+};
+
+
 module.exports = {
   getTicketPlans,
   lockSeats,
@@ -549,4 +617,5 @@ module.exports = {
     bookFreeTicket,
     lockPaidTickets,
     unlockPaidTickets,
+    getCheckoutDetails,
 };

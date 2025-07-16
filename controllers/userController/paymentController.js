@@ -112,7 +112,7 @@ const createOrder = async (req, res) => {
       success: true,
       message: "Order created successfully",
       razorpayOrderId: razorpayOrder.id,
-      amount: totalAmount * 100,
+      amount: razorpayAmount,
       currency: "INR",
       key: process.env.RAZORPAY_KEY_ID,
       orderId: paidTicket._id,
