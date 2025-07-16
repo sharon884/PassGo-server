@@ -35,6 +35,8 @@ const getUserBookings = async (req, res) => {
       event: eventMap[ticket.eventId.toString()] || null,
     }));
 
+    console.log("this is orderwith : ",ordersWithEvent, "this is ticketwith :",ticketsWithEvent )
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Bookings fetched successfully",
