@@ -5,6 +5,7 @@ const getUserWalletDetails = async (req, res) => {
   try {
     const userId = req.user.id;
     const walletData = await getUserWallet(userId);
+    
 
     if (!walletData) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
@@ -13,7 +14,7 @@ const getUserWalletDetails = async (req, res) => {
       });
     }
 
-    console.log(walletData.transactions);
+    console.log(walletData.balance);
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
