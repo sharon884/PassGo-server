@@ -2,11 +2,11 @@ const express = require("express");
 const router = express.Router();
 
 const hostAuthRoutes = require("./hostAuthRoutes");
-// const hostProfileRoutes = require("./hostProfileRoutes");
 const hostEventMangementRoutes = require("./hostEventMangementRoutes");
 const hostPaymentRoutes  = require("./hostPaymentRoutes");
 const hostEventAnalytics = require("./hostEventAnalytics");
 const hostOfferRoutes = require("./hostOfferRoutes");
+const hostWalletRoutes = require("./hostWalletRoutes");
 
 
 router.use("/auth", hostAuthRoutes); //Routes related to host Authentication
@@ -15,5 +15,6 @@ router.use("/event", hostEventMangementRoutes );  //Routes related to host Event
 router.use("/payment", hostPaymentRoutes );
 router.use("/event_analytics", hostEventAnalytics);
 router.use("/offer", hostOfferRoutes);
+router.use("/wallet", hostWalletRoutes);
 
 module.exports = router;
