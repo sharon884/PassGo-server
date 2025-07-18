@@ -4,54 +4,6 @@ const genarateSeatsForEvent = require("../../utils/seatHelper");
 const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 
-// const getPendingEvents = async ( req, res ) => {
-//     try {
-//         const events = await Event.find({isApproved : false}).populate('host', 'name', 'email' );
-//         if ( !events ) {
-//             res.status(STATUS_CODE.NOT_FOUND).json({
-//                 success : false,
-//                 message : "no pending events"
-//             });
-//         };
-
-//         res.status(STATUS_CODE.SUCCESS).json({
-//             success : true,
-//             events,
-//         })
-//     }catch ( error ) {
-//         res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-//             success : false,
-//             message : error.message,
-//         })
-//     };
-
-// };
-
-// const approveEvent = async ( req, res ) => {
-//     const { eventId } = req.params;
-//     try {
-//         const event = await Event.findById(eventId);
-//         if ( !event ) {
-//             return res.status(STATUS_CODE.NOT_FOUND).json({
-//                 success : false,
-//                 message : "Event not found",
-//             });
-//         };
-
-//         event.isApproved = true;
-//         await event.save();
-
-//         res.status(STATUS_CODE.SUCCESS).json({
-//             success : true,
-//             message : "Event approved successfully"
-//         });
-//     } catch ( error ) {
-//         res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-//             success : false,
-//             message : error.message,
-//         })
-//     }
-// };
 const getPendingEvents = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -152,6 +104,15 @@ const rejectEvent = async (req, res) => {
         message: "Event not found",
       });
     }
+
+
+    if (event.status === "rejected") {
+  return res.status(STATUS_CODE.BAD_REQUEST).json({
+    success: false,
+    message: "Event is already rejected",
+  });
+}
+
 
     if (event.status !== "requested" || !event.advancePaid) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({

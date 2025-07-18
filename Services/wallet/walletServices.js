@@ -31,7 +31,8 @@ const getHostWallet = async ( hostId ) => {
 const getAdminWallet = async ( userId ) => {
     try {
         const wallet = await Wallet.findOne({ user: userId });
-        const transactions = await Transaction.find({ userId , walletType : "admin"}).sort({ createdAt : -1});
+        console.log(wallet)
+        const transactions = await Transaction.find({ userId : userId , walletType : "admin"}).sort({ createdAt : -1});
         return { balance : wallet.balance, transactions };
     } catch ( error ) {
         console.log("error while fetchng wallent and transcation details of user : ",error );
