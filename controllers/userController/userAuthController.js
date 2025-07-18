@@ -16,7 +16,6 @@ const generateReferralCode = require("../../utils/generateReferralCode");
 const signupUser = async (req, res) => {
   try {
     const { name, email, mobile, password, role, referralCode } = req.body;
-    console.log(referralCode,"backend")
 
     const userExist = await User.findOne({ email });
     if (userExist) {
@@ -29,25 +28,23 @@ const signupUser = async (req, res) => {
 
     let referredBy = null;
 
-    if ( referralCode) {
-      const referringUser = await User.findOne({ referralCode : referralCode });
-        
-      if ( !referringUser ) {
+    if (referralCode) {
+      const referringUser = await User.findOne({ referralCode: referralCode });
+
+      if (!referringUser) {
         return res.status(STATUS_CODE.BAD_REQUEST).json({
-          message : "Invalid referral code",
+          message: "Invalid referral code",
         });
       }
 
-      referredBy = referringUser._id;   
+      referredBy = referringUser._id;
     }
-  
-
 
     const newUser = new User({
       name,
       email,
       mobile,
-      referralCode : referralCode,
+      referralCode: referralCodeForUser,
       referralUsed: !!referralCode,
       referredBy: referredBy,
       password: hashedPassword,
@@ -80,7 +77,7 @@ const signupUser = async (req, res) => {
   } catch (error) {
     console.log("signup error!", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
+      success: false,
       message: "Something went wrong",
     });
   }
@@ -91,7 +88,7 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password ) {
+    if (!email || !password) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Email, Password are required!",
@@ -99,7 +96,7 @@ const loginUser = async (req, res) => {
     }
 
     const existUser = await User.findOne({ email });
-  
+
     if (!existUser) {
       return res.status(STATUS_CODE.UNAUTHORIZED).json({
         success: false,
@@ -232,7 +229,7 @@ const googleSignupUser = async (req, res) => {
         _id: newUser._id,
         name: newUser.name,
         email: newUser.email,
-        mobile : newUser.mobile,
+        mobile: newUser.mobile,
         profile_image: newUser.profile_image,
         role: "user",
       },
@@ -246,81 +243,80 @@ const googleSignupUser = async (req, res) => {
   }
 };
 
-//Google Login user 
-const googleLoginUser = async ( req, res ) => {
+//Google Login user
+const googleLoginUser = async (req, res) => {
   try {
     const { token } = req.body;
-    if ( !token ) {
+    if (!token) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success : false,
-        message : "Token is missing",
+        success: false,
+        message: "Token is missing",
       });
     }
-    console.log(token)
+    console.log(token);
 
-    const  googleData = await verifyGoogleToken(token);
-    if ( !googleData.email_verified ) {
+    const googleData = await verifyGoogleToken(token);
+    if (!googleData.email_verified) {
       return res.status(STATUS_CODE.FORBIDDEN).json({
-        success : false,
-        message : "Email not verified",
+        success: false,
+        message: "Email not verified",
       });
     }
 
-    const existUser = await User.findOne({ email : googleData.email });
-    if ( !existUser ) {
+    const existUser = await User.findOne({ email: googleData.email });
+    if (!existUser) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        message : "User not found. Please signup first.",
+        success: false,
+        message: "User not found. Please signup first.",
       });
     }
 
     const payload = {
-      id : existUser._id,
-      email : existUser.email,
-      role : existUser.role,
+      id: existUser._id,
+      email: existUser.email,
+      role: existUser.role,
     };
 
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
     await User.findByIdAndUpdate(existUser._id, {
-      refreshToken : refreshToken,
+      refreshToken: refreshToken,
     });
 
     res.cookie("accessToken", accessToken, {
-      httpOnly : true,
-      secure : true,
-      sameSite : "strict",
-      maxAge : 15 * 60 * 1000,  
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
-     httpOnly : true,
-     secure : true,
-     sameSite : "strict",
-     maxAge : 30 * 24 * 60 * 60 * 1000, 
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
     res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      message : "Google Login successfull",
-      user : {
-        _id : existUser._id,
-        name : existUser.name,
-        email : existUser.email,
-        profile_image : existUser.profile_image,
-        mobile : existUser.mobile,
-        role : "user",
-
-      }
+      success: true,
+      message: "Google Login successfull",
+      user: {
+        _id: existUser._id,
+        name: existUser.name,
+        email: existUser.email,
+        profile_image: existUser.profile_image,
+        mobile: existUser.mobile,
+        role: "user",
+      },
     });
-  } catch ( error ) {
-    console.log("Google Login eroor:", error );
+  } catch (error) {
+    console.log("Google Login eroor:", error);
     res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Google Login failed",
+      success: false,
+      message: "Google Login failed",
     });
-  };
+  }
 };
 
 //forgetPassword user
@@ -352,7 +348,7 @@ const forgetPasswordUser = async (req, res) => {
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Please veify your account using the otp sent to your email",
-      id : existUser._id,
+      id: existUser._id,
     });
   } catch (error) {
     console.log("Forgot password error:", error);
@@ -367,7 +363,7 @@ const forgetPasswordUser = async (req, res) => {
 const logOutUser = async (req, res) => {
   try {
     const { id } = req.user.id;
-    console.log( id )
+    console.log(id);
 
     if (id) {
       await User.findByIdAndUpdate(id, { refreshToken: null });
@@ -399,97 +395,94 @@ const logOutUser = async (req, res) => {
 };
 
 //  verify otp for forgot password
-const verify_Forgot_Password_OTP_User  = async ( req, res ) => {
+const verify_Forgot_Password_OTP_User = async (req, res) => {
   try {
-  const { id , otp } = req.body;
-  if ( !id || !otp ) {
-    return res.status(STATUS_CODE.BAD_REQUEST).json({
-      success : false,
-      message : "User Id and OTP are required",
+    const { id, otp } = req.body;
+    if (!id || !otp) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "User Id and OTP are required",
+      });
+    }
+
+    const storedOTP = await OTP.findOne({ user_id: id }).sort({
+      createdAt: -1,
     });
-  };
-  
-  const storedOTP = await OTP.findOne({user_id : id}).sort({createdAt: -1});
-   if ( !storedOTP ) {
-    return res.status(STATUS_CODE.NOT_FOUND).json({
-      success : false,
-      message : "OTP not found. please request a new one",
+    if (!storedOTP) {
+      return res.status(STATUS_CODE.NOT_FOUND).json({
+        success: false,
+        message: "OTP not found. please request a new one",
+      });
+    }
+
+    if (storedOTP.expiresAt < Date.now()) {
+      return res.status(STATUS_CODE.UNAUTHORIZED).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    const hashedOtp = hashOtp(otp);
+
+    if (storedOTP.otp !== hashedOtp) {
+      return res.status(STATUS_CODE.UNAUTHORIZED).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    await OTP.deleteMany({ user_id: id });
+
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "OTP verified successfully. Now you can reset your password",
     });
-   }
-
-   if ( storedOTP.expiresAt < Date.now()) {
-    return res.status(STATUS_CODE.UNAUTHORIZED).json({
-      success : false,
-      message : "OTP has expired",
+  } catch (error) {
+    console.log("OTP verification error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
     });
-   }
-
-   const hashedOtp = hashOtp(otp);
-
-   if ( storedOTP.otp !== hashedOtp ) {
-    return res.status(STATUS_CODE.UNAUTHORIZED).json({
-      success : false,
-      message : "Invalid OTP",
-    });
-   }
-
-   await OTP.deleteMany({user_id : id});
-
-   return res.status(STATUS_CODE.SUCCESS).json({
-    success : true,
-    message : "OTP verified successfully. Now you can reset your password",
-   });
-
-} catch ( error ) {
-  console.log("OTP verification error:", error);
-  return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-    success : false,
-    message : "Internal server error",
-  });
-}
+  }
 };
 
-//forget password reset password controller 
-const resetPasswordUser = async ( req, res ) => {
+//forget password reset password controller
+const resetPasswordUser = async (req, res) => {
   try {
-    const { id , password } = req.body;
+    const { id, password } = req.body;
 
-    if ( !id || !password ) {
+    if (!id || !password) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success : false,
-        message : "User Id and Password are required",
+        success: false,
+        message: "User Id and Password are required",
       });
-    };
+    }
 
     const user = await User.findById(id);
-    if ( !user ) {
+    if (!user) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        message : "User not found"
+        success: false,
+        message: "User not found",
       });
-    };
+    }
 
     const hashedPassword = await hashPassword(password);
     user.password = hashedPassword;
     await user.save();
 
     return res.status(STATUS_CODE.CREATED).json({
-      success : true,
-      message : "Password reset successful.Please log in with your new password.",
+      success: true,
+      message:
+        "Password reset successful.Please log in with your new password.",
     });
-  } catch ( error ) {
+  } catch (error) {
     console.log("Reset password error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Internal server error",
+      success: false,
+      message: "Internal server error",
     });
-  };
+  }
 };
-
-
-
-
-
 
 module.exports = {
   signupUser,
