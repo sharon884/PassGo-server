@@ -113,24 +113,27 @@ const cancelPaidTickets = async (req, res) => {
       ticket.refundStatus = "refunded";
       await ticket.save({ session });
 
+      // User wallet handling
       let wallet = await Wallet.findOne({ user: userId }).session(session);
       if (!wallet) {
-        walletResult = await Wallet.create([{ user: userId, balance: 0 }], {
-          session,
-        });
+        const walletResult = await Wallet.create([{ user: userId, balance: 0 }], { session });
         wallet = walletResult[0];
       }
 
       wallet.balance += refundAmount;
-      // wallet.history.push({
-      //     type : "credit",
-      //     amount : refundAmount,
-      //     reason : `Reason for cancelled ticket (${ticket.category})`,
-      //     eventId : ticket.eventId,
-      // });
-
       await wallet.save({ session });
 
+      // Admin wallet handling
+      let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(session);
+      if (!adminWallet) {
+        const createdAdmin = await Wallet.create([{ walletType: "admin", balance: 0 }], { session });
+        adminWallet = createdAdmin[0];
+      }
+
+      adminWallet.balance -= refundAmount;
+      await adminWallet.save({ session });
+
+      // Dual transaction log: user refund + admin deduction
       await Transaction.create(
         [
           {
@@ -143,16 +146,27 @@ const cancelPaidTickets = async (req, res) => {
             walletType: "user",
             role: "user",
             status: "success",
-            description: `Refund of ₹${refundAmount} for cancelled ticket (${
-              refundPercent * 100
-            }%)`,
-
+            description: `Refund of ₹${refundAmount} for cancelled ticket (${refundPercent * 100}%)`,
             balanceAfterTransaction: wallet.balance,
+          },
+          {
+            userId: null,
+            eventId: ticket.eventId,
+            orderId: ticket._id,
+            amount: refundAmount,
+            type: "deduction",
+            method: "refund",
+            walletType: "admin",
+            role: "admin",
+            status: "success",
+            description: `Deducted ₹${refundAmount} from admin for ticket refund (${refundPercent * 100}%)`,
+            balanceAfterTransaction: adminWallet.balance,
           },
         ],
         { session }
       );
 
+      // If seats were reserved, release them
       if (event.eventType === "paid_stage_with_seats" && ticket.seats?.length) {
         for (const seatObj of ticket.seats) {
           const seatNumber = seatObj.seatNumber[0];
@@ -211,7 +225,7 @@ const cancelPaidTickets = async (req, res) => {
     console.error("Error cancelling tickets:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Server error while cacelling tickets",
+      message: "Server error while cancelling tickets",
     });
   }
 };

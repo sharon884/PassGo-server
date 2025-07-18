@@ -1,10 +1,8 @@
-const FreeTicket = require("../../models/freeTicketModel");
 const Razorpay = require("razorpay");
 const STATUS_CODE = require("../../constants/statuscodes");
 const PaidTicket = require("../../models/paidTicketModel");
 const User = require("../../models/userModel");
 const Event = require("../../models/eventModel");
-const Seat = require("../../models/seatModel");
 const { generateOrderId } = require("../../utils/genarateOrderId");
 const razorPay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -15,8 +13,7 @@ const redis = require("../../utils/redisClient");
 const generateETicket = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
 const Offer = require("../../models/offerModel");
-
-
+const mongoose = require("mongoose");
 
 
 const createOrderWithoutSeats = async (req, res) => {
@@ -26,14 +23,16 @@ const createOrderWithoutSeats = async (req, res) => {
 
     if (!eventId || !category || !quantity || !paymentMethod) {
       return res
-        .status(400)
+        .status(STATUS_CODE.BAD_REQUEST)
         .json({ success: false, message: "Missing fields" });
     }
 
     // 1. Check event
     const event = await Event.findById(eventId);
     if (!event || event.eventType !== "paid_stage_without_seats") {
-      return res.status(404).json({ success: false, message: "Invalid event" });
+      return res
+        .status(STATUS_CODE.NOT_FOUND)
+        .json({ success: false, message: "Invalid event" });
     }
 
     // 2. Check Redis lock
@@ -41,7 +40,7 @@ const createOrderWithoutSeats = async (req, res) => {
     const lockData = await redis.get(userLockKey);
     if (!lockData) {
       return res
-        .status(400)
+        .status(STATUS_CODE.BAD_REQUEST)
         .json({ success: false, message: "Ticket not locked or expired" });
     }
 
@@ -88,35 +87,22 @@ const createOrderWithoutSeats = async (req, res) => {
 
     // 3. Create Order
     const order = new PaidTicket({
-  userId,
-  eventId,
-  category,
-  quantity,
-  amount: baseAmount, // before discount
-  gstAmount,
-  finalAmount,         // after offer + gst
-  offerApplied: offerDetails,
-  razorpayOrderId: razorpayOrder.id,
-  paymentMethod,
-  status: "created",
-});
-
+      userId,
+      eventId,
+      category,
+      quantity,
+      amount: baseAmount, // before discount
+      gstAmount,
+      finalAmount, // after offer + gst
+      offerApplied: offerDetails,
+      razorpayOrderId: razorpayOrder.id,
+      paymentMethod,
+      status: "created",
+    });
 
     await order.save();
 
-    await Transaction.create({
-      userId: userId,
-      eventId: event._id,
-      orderId: order._id,
-      amount: order.finalAmount,
-      type: "payment",
-      method: "razorpay",
-      role: "user",
-      walletType: "user",
-      description: `Ticket purchase for event: ${event.title}`,
-    });
-
-    return res.status(200).json({
+    return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Order created",
       razorpayOrderId: razorpayOrder.id,
@@ -127,11 +113,15 @@ const createOrderWithoutSeats = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating non-seat orderrrrr:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res
+      .status(STATUS_CODE.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error" });
   }
 };
 
 const verifyPaymentWithoutSeats = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } =
       req.body;
@@ -143,8 +133,10 @@ const verifyPaymentWithoutSeats = async (req, res) => {
       !razorpayPaymentId ||
       !razorpaySignature
     ) {
+      await session.abortTransaction();
+      session.endSession();
       return res
-        .status(400)
+        .status(STATUS_CODE.BAD_REQUEST)
         .json({ success: false, message: "Missing payment fields" });
     }
 
@@ -156,74 +148,86 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     );
 
     if (!isValid) {
+      await session.abortTransaction();
+      session.endSession();
       return res
-        .status(400)
+        .status(STATUS_CODE.BAD_REQUEST)
         .json({ success: false, message: "Invalid signature" });
     }
 
-    const order = await PaidTicket.findById(orderId);
+    const order = await PaidTicket.findById(orderId).session(session);
     if (!order || order.status === "paid") {
+      await session.abortTransaction();
+      session.endSession();
       return res
-        .status(404)
+        .status(STATUS_CODE.NOT_FOUND)
         .json({ success: false, message: "Order not found or already paid" });
     }
 
+    const event = await Event.findById(order.eventId).session(session);
+    const user = await User.findById(userId).session(session);
+
+    // Update order status
     order.status = "paid";
     order.razorpayPaymentId = razorpayPaymentId;
     order.razorpaySignature = razorpaySignature;
-    await order.save();
-
-    const event = await Event.findById(order.eventId);
-    const user = await User.findById(userId);
 
     const eTicketUrls = [];
 
     for (let i = 0; i < order.quantity; i++) {
       const qrData = `${order._id}_${userId}_${i + 1}`;
       const pdfUrl = await generateETicket({
-        ticketId: `${order._id}-${i + 1}`, // unique ID
+        ticketId: `${order._id}-${i + 1}`,
         event,
         user,
         qrData,
       });
-
       eTicketUrls.push(pdfUrl);
     }
 
     order.eticketUrl = eTicketUrls;
-    await order.save();
+    await order.save({ session });
 
-    // // Book tickets permanently
-    // const tickets = [];
-    // for (let i = 0; i < order.quantity; i++) {
-    //   tickets.push({
-    //     userId,
-    //     eventId: order.eventId,
-    //     category: order.category,
-    //     type: "paid",
-    //     status: "booked",
-    //   });
-    // }
+    // Update admin wallet
+    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(
+      session
+    );
+    if (!adminWallet) {
+      adminWallet = await Wallet.create([{ walletType: "admin", balance: 0 }], {
+        session,
+      });
+      adminWallet = adminWallet[0]; // create returns array
+    }
 
-    // await PaidTicket.insertMany(tickets);
+    adminWallet.balance += order.finalAmount;
+    await adminWallet.save({ session });
 
-    await Transaction.create({
-      userId: userId,
-      eventId: event._id,
-      orderId: order._id,
-      amount: order.finalAmount,
-      type: "payment",
-      method: "razorpay",
-      role: "user",
-      walletType: "user",
-      description: `Ticket purchase for event: ${event.title}`,
-    });
+    // Log transaction
+    await Transaction.create(
+      [
+        {
+          userId,
+          eventId: event._id,
+          orderId: order._id,
+          amount: order.finalAmount,
+          type: "payment",
+          method: "razorpay",
+          role: "user",
+          walletType: "admin",
+          description: `Ticket purchase for event: ${event.title}`,
+          balanceAfterTransaction: adminWallet.balance,
+        },
+      ],
+      { session }
+    );
 
-    // Unlock Redis
+    await session.commitTransaction();
+    session.endSession();
+
     const redisKey = `lock:${order.eventId}:${order.category}:${userId}`;
     await redis.del(redisKey);
 
-    return res.status(200).json({
+    return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Payment verified and tickets booked",
       orderId: order._id,
@@ -231,7 +235,11 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     });
   } catch (err) {
     console.error("Error verifying non-seat payment:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    await session.abortTransaction();
+    session.endSession();
+    return res
+      .status(STATUS_CODE.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error" });
   }
 };
 

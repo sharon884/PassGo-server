@@ -13,6 +13,7 @@ const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const generateQrCodeImage = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
 const Offer = require("../../models/offerModel");
+const mongoose = require("mongoose");
 
 const createOrder = async (req, res) => {
   try {
@@ -126,10 +127,18 @@ const createOrder = async (req, res) => {
   }
 };
 
+
 const verifyPayment = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } =
-      req.body;
+    const {
+      orderId,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature,
+    } = req.body;
 
     if (
       !orderId ||
@@ -137,11 +146,14 @@ const verifyPayment = async (req, res) => {
       !razorpayOrderId ||
       !razorpaySignature
     ) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "All fields are required",
       });
     }
+
     const isValid = verifyRazorpaySignature(
       razorpayOrderId,
       razorpayPaymentId,
@@ -150,57 +162,69 @@ const verifyPayment = async (req, res) => {
     );
 
     if (!isValid) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Invalid signature payment verification failed",
       });
     }
 
-    const paidTicket = await PaidTicket.findById(orderId);
+    const paidTicket = await PaidTicket.findById(orderId).session(session);
     if (!paidTicket) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Order not found",
       });
     }
+
     if (paidTicket.status === "paid") {
+      await session.commitTransaction();
+      session.endSession();
       return res.status(STATUS_CODE.CONFLICT).json({
         success: true,
         message: "Order already marked as paid",
       });
     }
+
     paidTicket.status = "paid";
     paidTicket.razorpayPaymentId = razorpayPaymentId;
     paidTicket.razorpaySignature = razorpaySignature;
-    await paidTicket.save();
+    await paidTicket.save({ session });
 
-    const seatNumbers = paidTicket.seats.map((seat) => seat.seatNumber).flat();
-    console.log("Seat Numbers:", seatNumbers);
+    // Admin wallet update
+    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(session);
+    if (!adminWallet) {
+      adminWallet = await Wallet.create([{ walletType: "admin", balance: 0 }], { session });
+      adminWallet = adminWallet[0];
+    }
 
+    adminWallet.balance += paidTicket.finalAmount;
+    await adminWallet.save({ session });
+
+    const seatNumbers = paidTicket.seats.map(seat => seat.seatNumber).flat();
     if (seatNumbers.length > 0) {
       await Seat.updateMany(
         {
           event: paidTicket.eventId,
           seatNumber: { $in: seatNumbers },
         },
-        {
-          $set: {
-            status: "booked",
-          },
-        }
+        { $set: { status: "booked" } },
+        { session }
       );
     }
-    const event = await Event.findById(paidTicket.eventId);
-    const user = await User.findById(paidTicket.userId);
+
+    const event = await Event.findById(paidTicket.eventId).session(session);
+    const user = await User.findById(paidTicket.userId).session(session);
 
     const eTicketUrls = [];
 
     for (let i = 0; i < paidTicket.seats.length; i++) {
       const seat = paidTicket.seats[i];
       const seatNumber = seat.seatNumber[0];
-
       const qrData = `${paidTicket._id}_${user._id}_${seatNumber}`;
-
       const pdfUrl = await generateQrCodeImage({
         ticketId: `${paidTicket._id}-${seatNumber}`,
         event,
@@ -212,28 +236,37 @@ const verifyPayment = async (req, res) => {
     }
 
     paidTicket.eticketUrl = eTicketUrls;
-    await paidTicket.save();
+    await paidTicket.save({ session });
 
-    await Transaction.create({
-      userId: user._id,
-      eventId: event._id,
-      orderId: paidTicket._id,
-      amount: paidTicket.finalAmount,
-      type: "payment",
-      method: "razorpay",
-      role: "user",
-      walletType: "user",
-      description: `Seat booking for event: ${event.title}`,
-    });
+    await Transaction.create(
+      [{
+        userId: user._id,
+        eventId: event._id,
+        orderId: paidTicket._id,
+        amount: paidTicket.finalAmount,
+        type: "payment",
+        method: "razorpay",
+        role: "user",
+        walletType: "admin",
+        description: `Seat booking for event: ${event.title}`,
+        balanceAfterTransaction: adminWallet.balance,
+      }],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Payment verified successfully",
-      orderId: orderId,
+      orderId,
       amount: paidTicket.amount,
       status: "booked",
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.log("Payment verification error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
