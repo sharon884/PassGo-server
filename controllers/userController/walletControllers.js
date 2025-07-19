@@ -14,7 +14,7 @@ const getUserWalletDetails = async (req, res) => {
       });
     }
 
-    console.log(walletData.balance);
+    console.log(walletData.transactions);
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,

@@ -14,6 +14,7 @@ const generateQrCodeImage = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
 const Offer = require("../../models/offerModel");
 const mongoose = require("mongoose");
+const Wallet = require("../../models/walletModel")
 
 const createOrder = async (req, res) => {
   try {

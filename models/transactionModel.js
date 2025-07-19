@@ -3,10 +3,13 @@ const mongoose = require("mongoose");
 const transactionSchema = new mongoose.Schema(
   {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  required: function () {
+    return this.role === "user" || this.role === "host";
+  },
+},
+
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Event",

@@ -141,7 +141,7 @@ const cancelPaidTickets = async (req, res) => {
             eventId: ticket.eventId,
             orderId: ticket._id,
             amount: refundAmount,
-            type: "refund",
+            type: "wallet_deduct",
             method: "wallet",
             walletType: "user",
             role: "user",
@@ -154,8 +154,8 @@ const cancelPaidTickets = async (req, res) => {
             eventId: ticket.eventId,
             orderId: ticket._id,
             amount: refundAmount,
-            type: "deduction",
-            method: "refund",
+            type: "wallet_deduct",
+            method:"admin",
             walletType: "admin",
             role: "admin",
             status: "success",
@@ -163,7 +163,7 @@ const cancelPaidTickets = async (req, res) => {
             balanceAfterTransaction: adminWallet.balance,
           },
         ],
-        { session }
+        { session, ordered: true }
       );
 
       // If seats were reserved, release them

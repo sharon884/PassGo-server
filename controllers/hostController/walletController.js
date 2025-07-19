@@ -14,7 +14,6 @@ const getHostWalletDetails = async ( req, res ) => {
         message: "Wallet not found",
       });
     }
-  console.log(walletData.transactions)
 
         return res.status(STATUS_CODE.SUCCESS).json({
             success : true,
