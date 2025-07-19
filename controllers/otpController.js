@@ -118,6 +118,7 @@ const verifyOTP = async (req, res) => {
           amount: rewardAmount,
           reason: "Referral Reward",
           initiatedBy: "system",
+          walletType: role , 
           notes: `Reward for using referral`,
         });
 
@@ -175,7 +176,7 @@ const verifyOTP = async (req, res) => {
       } else {
         let wallet = await Wallet.findOne({ user: user._id }).session(session);
         if (!wallet) {
-          wallet = new Wallet({ user: user._id, balance: 0 });
+          wallet = new Wallet({ user: user._id, balance: 0,   walletType: role, });
           await wallet.save({ session });
         }
       }
@@ -214,7 +215,7 @@ const verifyOTP = async (req, res) => {
 
 
     } catch (transactionError) {
-      await session.abortTrasction();
+      await session.abortTransaction();
       session.endSession();
       console.log("Transaction Error:", transactionError);
       return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
