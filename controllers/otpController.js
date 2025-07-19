@@ -113,14 +113,14 @@ const verifyOTP = async (req, res) => {
           userWallet.balance = userWallet.balance + rewardAmount;
         }
 
-        userWallet.history.push({
-          type: "credit",
-          amount: rewardAmount,
-          reason: "Referral Reward",
-          initiatedBy: "system",
-          walletType: role , 
-          notes: `Reward for using referral`,
-        });
+        // userWallet.history.push({
+        //   type: "credit",
+        //   amount: rewardAmount,
+        //   reason: "Referral Reward",
+        //   initiatedBy: "system",
+        //   walletType: role , 
+        //   notes: `Reward for using referral`,
+        // });
 
         await userWallet.save({ session });
 
