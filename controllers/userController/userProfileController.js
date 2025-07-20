@@ -1,6 +1,7 @@
 const STATUS_CODE = require("../../constants/statuscodes");
 const User = require("../../models/userModel");
 const { comparePassword , hashPassword } = require("../../utils/hash");
+const  { createNotification } = require("../../Services/notifications/notificationServices");
 
 const getUserProfile = async (req, res) => {
   try {
@@ -16,9 +17,7 @@ const getUserProfile = async (req, res) => {
         message: "User not found",
       });
     }
-
-    console.log( user.hostVerificationStatus,)
-
+ 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "User Profile fetch successfully!",
