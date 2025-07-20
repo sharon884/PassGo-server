@@ -29,6 +29,13 @@ app.use(cors({
     credentials : true,
 }));
 app.use(cookieParser());
+
+// io instance
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 app.set("io", io);
 
 startUnlockSeatsCron(io);
