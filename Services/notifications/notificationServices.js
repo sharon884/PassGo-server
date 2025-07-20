@@ -9,7 +9,6 @@ const createNotification = async (io, { userId, role, type, message, reason }) =
     reason,
   });
 
-  console.log(userId);
   io.to(userId.toString()).emit("new-notification", notification);
   return notification;
 };
