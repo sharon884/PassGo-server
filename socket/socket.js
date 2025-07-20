@@ -67,6 +67,11 @@ const initializeSocket = (server) => {
       });
     });
 
+    socket.on("join-notification-room", (userId) => {
+      socket.join(userId);
+      console.log(`User ${userId} joined their notification room`);
+    });
+
     socket.on("disconnect", () => {
       console.log("socket disconnected", socket.id);
     });
