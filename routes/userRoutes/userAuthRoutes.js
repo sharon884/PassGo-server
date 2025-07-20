@@ -2,7 +2,7 @@
 const express = require( "express" );
 const router = express.Router();
 const { signupUser, loginUser, googleSignupUser,logOutUser, forgetPasswordUser, verify_Forgot_Password_OTP_User, resetPasswordUser, googleLoginUser } = require( "../../controllers/userController/userAuthController");
-const { verifyOTP , resendOTP } = require( "../../controllers/otpController");
+const { verifyOTP , resendOTP } = require( "../../controllers/generalController/otpController");
 const verifyToken = require("../../middlewares/verifyTokenMiddleware");
 
 

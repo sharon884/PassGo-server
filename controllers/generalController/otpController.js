@@ -1,13 +1,13 @@
-const { generateOTP, hashOtp, getOTPExpiry } = require("../utils/otp");
-const sendMail = require("../utils/sendMail");
-const OTP = require("../models/otpModel");
-const STATUS_CODE = require("../constants/statuscodes");
-const User = require("../models/userModel");
-const Wallet = require("../models/walletModel");
-const Transaction = require("../models/transactionModel");
-const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
+const { generateOTP, hashOtp, getOTPExpiry } = require("../../utils/otp");
+const sendMail = require("../../utils/sendMail");
+const OTP = require("../../models/otpModel");
+const STATUS_CODE = require("../../constants/statuscodes");
+const User = require("../../models/userModel");
+const Wallet = require("../../models/walletModel");
+const Transaction = require("../../models/transactionModel");
+const { generateAccessToken, generateRefreshToken } = require("../../utils/jwt");
 const mongoose = require("mongoose");
-const createNotification = require("../Services/notifications/notificationServices");
+const createNotification = require("../../Services/notifications/notificationServices");
 
 const sendOTP = async (req, res) => {
   try {

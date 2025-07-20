@@ -11,6 +11,7 @@ const  morgan = require('morgan');
 const http = require("http");
 const initializeSocket = require("./socket/socket");
 const startUnlockSeatsCron = require("./cron/unlockSeatsCron");
+const eventAnalytics  = require("./routes/golbalRoutes/evetAnalytics");
 
 
 dotenv.config();
@@ -54,6 +55,7 @@ app.use( "/api/user", userRoutes );
 app.use( "/api/host", hostRoutes );
 app.use( "/api/admin", adminRoutes);
 app.use( "/api/auth", refresTokenRoute);
+app.use( "/api/event_analytics", eventAnalytics )
 
  const port = process.env.PORT || 5000;
 server.listen(port, () => {

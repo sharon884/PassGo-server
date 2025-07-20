@@ -1,7 +1,7 @@
-// //Host Event analytics 
+// Event analytics 
 const express = require("express");
 const router = express.Router();
-const { getEventBookingSummary } = require("../../controllers/hostController/hostEventAnalytics");
+const { getEventBookingSummary } = require("../../controllers/generalController/EventAnalytics");
 const verifyTokenMiddleware = require("../../middlewares/verifyTokenMiddleware");
 
 router.route("/:eventId/summary").get( verifyTokenMiddleware, getEventBookingSummary);

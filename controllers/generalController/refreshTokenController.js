@@ -1,13 +1,13 @@
 const jwt = require("jsonwebtoken");
-const STATUS_CODE = require("../constants/statuscodes");
+const STATUS_CODE = require("../../constants/statuscodes");
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyToken,
-} = require("../utils/jwt");
-const {getModelByRole} = require("../utils/getModelByRole");
-const User = require("../models/userModel");
-const Admin = require("../models/adminModel");
+} = require("../../utils/jwt");
+const {getModelByRole} = require("../../utils/getModelByRole");
+const User = require("../../models/userModel");
+const Admin = require("../../models/adminModel");
 
 
 
