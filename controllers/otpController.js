@@ -7,6 +7,7 @@ const Wallet = require("../models/walletModel");
 const Transaction = require("../models/transactionModel");
 const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
 const mongoose = require("mongoose");
+const createNotification = require("../Services/notifications/notificationServices");
 
 const sendOTP = async (req, res) => {
   try {
@@ -113,15 +114,6 @@ const verifyOTP = async (req, res) => {
           userWallet.balance = userWallet.balance + rewardAmount;
         }
 
-        // userWallet.history.push({
-        //   type: "credit",
-        //   amount: rewardAmount,
-        //   reason: "Referral Reward",
-        //   initiatedBy: "system",
-        //   walletType: role , 
-        //   notes: `Reward for using referral`,
-        // });
-
         await userWallet.save({ session });
 
         await Transaction.create(
@@ -173,10 +165,18 @@ const verifyOTP = async (req, res) => {
           ],
           { session }
         );
+
+        await createNotification(req.io, {
+          userId: user.referredBy,
+          role: "user", 
+          type: "referral",
+          message: `You earned ₹${rewardAmount} for referring ${user.name}`,
+          reason: "referral_bonus",
+        });
       } else {
         let wallet = await Wallet.findOne({ user: user._id }).session(session);
         if (!wallet) {
-          wallet = new Wallet({ user: user._id, balance: 0,   walletType: role, });
+          wallet = new Wallet({ user: user._id, balance: 0, walletType: role });
           await wallet.save({ session });
         }
       }
@@ -212,11 +212,17 @@ const verifyOTP = async (req, res) => {
         success: true,
         message: "OTP verified successfully" + referralMessage,
       });
-
-
     } catch (transactionError) {
       await session.abortTransaction();
       session.endSession();
+
+      await createNotification(req.io, {
+        userId: userId,
+        role: role,
+        type: "account",
+        message: "Your account has been successfully verified!",
+        reason: "otp_verified",
+      });
       console.log("Transaction Error:", transactionError);
       return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -231,23 +237,6 @@ const verifyOTP = async (req, res) => {
     });
   }
 };
-
-//     await User.findByIdAndUpdate(userId, {
-//       is_active: true,
-//       refreshToken: refreshToken,
-//       isVerified : true,
-//     });
-
-//     await OTP.deleteMany({ user_id: userId });
-
-//   } catch (error) {
-//     console.log("OTP verification error:", error);
-//     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-//       success: false,
-//       message: "Something went wrong while verifying OTP ",
-//     });
-//   }
-// };
 
 const resendOTP = async (req, res) => {
   try {
