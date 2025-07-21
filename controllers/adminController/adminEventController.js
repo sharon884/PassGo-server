@@ -5,49 +5,78 @@ const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
 
-const getPendingEvents = async (req, res) => {
+
+const getEventsWithFilters = async (req, res) => {
+ 
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      status,
+        isApproved,
+      sortBy = "createdAt",
+      order = "desc",
+      advancePaid,
+    } = req.query;
+
     const skip = (page - 1) * limit;
 
-    const [events, total] = await Promise.all([
-      Event.find({
-        advancePaid: true,
-        isApproved: false,
-        status: "requested",
-      })
-        .populate("host", "name email mobile")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+    const query = {};
+   
+    // Filter by event status
+    if (status) {
+      query.status = status;
+    }
 
-      Event.countDocuments({
-        advancePaid: true,
-        isApproved: false,
-        status: "requested",
-      }),
+     if ( advancePaid !== undefined) {
+      query.advancePaid = advancePaid === "true"; 
+    }
+
+     if (isApproved !== undefined) {
+      query.isApproved = isApproved === "true";
+    }
+  
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const sortOptions = {
+      [sortBy]: order === "asc" ? 1 : -1,
+    };
+
+    const [events, total] = await Promise.all([
+      Event.find(query)
+        .populate("host", "name email")
+        .sort(sortOptions)
+        .skip(parseInt(skip))
+        .limit(parseInt(limit)),
+      Event.countDocuments(query),
     ]);
-    console.log(events);
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
-      message: "Events fetched successfully!",
+      message: "Events fetched successfully",
       events,
       pagination: {
         total,
-        page,
-        limit,
+        page: parseInt(page),
+        limit: parseInt(limit),
         totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
-    console.log("fetch approved events pending error:", error);
+    console.error("getEventsWithFilters error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Server error",
+      message: "Server error while fetching events",
     });
   }
 };
+
 
 //approve the event by admin
 const approveEvent = async (req, res) => {
@@ -211,77 +240,6 @@ const rejectEvent = async (req, res) => {
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Server error while rejecting event",
-    });
-  }
-};
-
-const getEventsWithFilters = async (req, res) => {
- 
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      search = "",
-      status,
-        isApproved,
-      sortBy = "createdAt",
-      order = "desc",
-      advancePaid,
-    } = req.query;
-
-    const skip = (page - 1) * limit;
-
-    const query = {};
-   
-    // Filter by event status
-    if (status) {
-      query.status = status;
-    }
-
-     if ( advancePaid !== undefined) {
-      query.advancePaid = advancePaid === "true"; 
-    }
-
-     if (isApproved !== undefined) {
-      query.isApproved = isApproved === "true";
-    }
-  
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const sortOptions = {
-      [sortBy]: order === "asc" ? 1 : -1,
-    };
-
-    const [events, total] = await Promise.all([
-      Event.find(query)
-        .populate("host", "name email")
-        .sort(sortOptions)
-        .skip(parseInt(skip))
-        .limit(parseInt(limit)),
-      Event.countDocuments(query),
-    ]);
-
-    return res.status(STATUS_CODE.SUCCESS).json({
-      success: true,
-      message: "Events fetched successfully",
-      events,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("getEventsWithFilters error:", error);
-    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: "Server error while fetching events",
     });
   }
 };
