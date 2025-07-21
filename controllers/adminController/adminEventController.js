@@ -245,7 +245,6 @@ const rejectEvent = async (req, res) => {
 };
 
 module.exports = {
-  getPendingEvents,
   approveEvent,
   rejectEvent,
   getEventsWithFilters
