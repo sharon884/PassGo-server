@@ -5,8 +5,6 @@ const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
 
-
-
 const getPendingEvents = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -93,8 +91,6 @@ const approveEvent = async (req, res) => {
   }
 };
 
-
-
 // Reject the event by admin with reason
 const rejectEvent = async (req, res) => {
   const session = await mongoose.startSession();
@@ -133,7 +129,9 @@ const rejectEvent = async (req, res) => {
     const refundAmount = Math.ceil(event.estimatedRevenue * 0.2) || 200;
 
     // Get or create admin wallet
-    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(session);
+    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(
+      session
+    );
     if (!adminWallet) {
       adminWallet = new Wallet({ walletType: "admin", balance: 0 });
     }
@@ -162,35 +160,39 @@ const rejectEvent = async (req, res) => {
 
     // Admin wallet transaction (debit)
     await Transaction.create(
-      [{
-        userId: req.user.id,
-        eventId: event._id,
-        amount: refundAmount,
-        type: "refund",
-        method: "admin",
-        role: "admin",
-        walletType: "admin",
-        status: "success",
-        description: `Advance refund to host for rejected event: ${event.title}`,
-        balanceAfterTransaction: adminWallet.balance,
-      }],
+      [
+        {
+          userId: req.user.id,
+          eventId: event._id,
+          amount: refundAmount,
+          type: "refund",
+          method: "admin",
+          role: "admin",
+          walletType: "admin",
+          status: "success",
+          description: `Advance refund to host for rejected event: ${event.title}`,
+          balanceAfterTransaction: adminWallet.balance,
+        },
+      ],
       { session }
     );
 
     // Host wallet transaction (credit)
     await Transaction.create(
-      [{
-        userId: event.host,
-        eventId: event._id,
-        amount: refundAmount,
-        type: "refund",
-        method: "admin",
-        role: "host",
-        walletType: "host",
-        status: "success",
-        description: `Advance refund for rejected event: ${event.title}`,
-        balanceAfterTransaction: wallet.balance,
-      }],
+      [
+        {
+          userId: event.host,
+          eventId: event._id,
+          amount: refundAmount,
+          type: "refund",
+          method: "admin",
+          role: "host",
+          walletType: "host",
+          status: "success",
+          description: `Advance refund for rejected event: ${event.title}`,
+          balanceAfterTransaction: wallet.balance,
+        },
+      ],
       { session }
     );
 
@@ -213,8 +215,80 @@ const rejectEvent = async (req, res) => {
   }
 };
 
+const getEventsWithFilters = async (req, res) => {
+ 
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      status,
+        isApproved,
+      sortBy = "createdAt",
+      order = "desc",
+      advancePaid,
+    } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    const query = {};
+   
+    // Filter by event status
+    if (status) {
+      query.status = status;
+    }
+
+     if ( advancePaid !== undefined) {
+      query.advancePaid = advancePaid === "true"; 
+    }
+
+     if (isApproved !== undefined) {
+      query.isApproved = isApproved === "true";
+    }
+  
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { location: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const sortOptions = {
+      [sortBy]: order === "asc" ? 1 : -1,
+    };
+
+    const [events, total] = await Promise.all([
+      Event.find(query)
+        .populate("host", "name email")
+        .sort(sortOptions)
+        .skip(parseInt(skip))
+        .limit(parseInt(limit)),
+      Event.countDocuments(query),
+    ]);
+
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "Events fetched successfully",
+      events,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("getEventsWithFilters error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Server error while fetching events",
+    });
+  }
+};
+
 module.exports = {
   getPendingEvents,
   approveEvent,
   rejectEvent,
+  getEventsWithFilters
 };
