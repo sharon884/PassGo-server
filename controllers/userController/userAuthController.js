@@ -341,7 +341,7 @@ const forgetPasswordUser = async (req, res) => {
 
     await OTP.create({
       user_id: existUser._id,
-      user_role: "User",
+      user_role: "user",
       otp: hashedOtp,
       expiresAt,
     });
