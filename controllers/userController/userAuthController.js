@@ -158,7 +158,6 @@ const loginUser = async (req, res) => {
   }
 };
 
-//Google signup User
 const googleSignupUser = async (req, res) => {
   try {
     const { token } = req.body;
@@ -181,9 +180,11 @@ const googleSignupUser = async (req, res) => {
     if (existUser) {
       return res.status(STATUS_CODE.CONFLICT).json({
         success: false,
-        message: "User alredy exists with this email. Try Log In",
+        message: "User already exists with this email. Try Log In",
       });
     }
+
+    const referralCodeForUser = generateReferralCode();
 
     const newUser = await User.create({
       name: googleData.name,
@@ -192,6 +193,7 @@ const googleSignupUser = async (req, res) => {
       googleId: googleData.googleId,
       is_active: true,
       isGoogleAccount: true,
+      referralCode: referralCodeForUser,
       role: "user",
     });
 
