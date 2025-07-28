@@ -265,11 +265,13 @@ const resendOTP = async (req, res) => {
 
     await OTP.create({
       user_id: user._id,
+       user_role : user.role,
       otp: hashedOtp,
       expiresAt,
     });
 
     await sendMail(email, "Your OTP code", `your new OTP is : ${plainOtp}`);
+    console.log(plainOtp)
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
