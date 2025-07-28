@@ -192,6 +192,7 @@ const googleSignupUser = async (req, res) => {
       profile_image: googleData.profile_image,
       googleId: googleData.googleId,
       is_active: true,
+      isVerified : true,
       isGoogleAccount: true,
       referralCode: referralCodeForUser,
       role: "user",
@@ -208,6 +209,7 @@ const googleSignupUser = async (req, res) => {
 
     await User.findByIdAndUpdate(newUser._id, {
       refreshToken: refreshToken,
+    
     });
 
     res.cookie("accessToken", accessToken, {
