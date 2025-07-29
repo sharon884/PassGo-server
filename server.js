@@ -13,7 +13,8 @@ const initializeSocket = require("./socket/socket");
 const startUnlockSeatsCron = require("./cron/unlockSeatsCron");
 const eventAnalytics = require("./routes/globalRoutes/evetAnalytics");
 const { globalLimiter } = require("./middlewares/rateLimiter/ratelimiter");
-const notificationRoutes = require("./routes/globalRoutes/notificationRoutes")
+const notificationRoutes = require("./routes/globalRoutes/notificationRoutes");
+const landingRoutes = require("./routes/globalRoutes/landingRoutes");
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/auth", refresTokenRoute);
 app.use("/api/event_analytics", eventAnalytics);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/landing", landingRoutes);
 
 const port = process.env.PORT || 5000;
 server.listen(port, () => {
