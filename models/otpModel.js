@@ -9,7 +9,7 @@ const otpSchema = new mongoose.Schema(
     user_role: {
       type : String,
       required : true,
-      enum : [ "User", "Host", "Admin"],
+      enum : [ "user",  "admin"],
     },
     otp: {
       type: String,

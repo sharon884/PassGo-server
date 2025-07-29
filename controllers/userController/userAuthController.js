@@ -158,7 +158,6 @@ const loginUser = async (req, res) => {
   }
 };
 
-//Google signup User
 const googleSignupUser = async (req, res) => {
   try {
     const { token } = req.body;
@@ -181,9 +180,11 @@ const googleSignupUser = async (req, res) => {
     if (existUser) {
       return res.status(STATUS_CODE.CONFLICT).json({
         success: false,
-        message: "User alredy exists with this email. Try Log In",
+        message: "User already exists with this email. Try Log In",
       });
     }
+
+    const referralCodeForUser = generateReferralCode();
 
     const newUser = await User.create({
       name: googleData.name,
@@ -191,7 +192,9 @@ const googleSignupUser = async (req, res) => {
       profile_image: googleData.profile_image,
       googleId: googleData.googleId,
       is_active: true,
+      isVerified : true,
       isGoogleAccount: true,
+      referralCode: referralCodeForUser,
       role: "user",
     });
 
@@ -206,6 +209,7 @@ const googleSignupUser = async (req, res) => {
 
     await User.findByIdAndUpdate(newUser._id, {
       refreshToken: refreshToken,
+    
     });
 
     res.cookie("accessToken", accessToken, {
@@ -337,7 +341,7 @@ const forgetPasswordUser = async (req, res) => {
 
     await OTP.create({
       user_id: existUser._id,
-      user_role: "User",
+      user_role: "user",
       otp: hashedOtp,
       expiresAt,
     });
