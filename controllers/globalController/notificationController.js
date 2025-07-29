@@ -83,6 +83,23 @@ const markAllAsRead = async (req, res) => {
 
 
 
+const deleteReadNotifications = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    await Notification.deleteMany({ userId, read: true });
+
+    return res
+      .status(STATUS_CODE.SUCCESS)
+      .json({ success: true, message: "Read notifications deleted" });
+  } catch (error) {
+    console.error("Delete read error:", error);
+    return res
+      .status(STATUS_CODE.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error" });
+  }
+};
+
 
 module.exports = {
   getNotificationsByUser,
