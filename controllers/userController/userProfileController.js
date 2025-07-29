@@ -1,23 +1,24 @@
 const STATUS_CODE = require("../../constants/statuscodes");
 const User = require("../../models/userModel");
-const { comparePassword , hashPassword } = require("../../utils/hash");
-const  { createNotification } = require("../../Services/notifications/notificationServices");
+const { comparePassword, hashPassword } = require("../../utils/hash");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const getUserProfile = async (req, res) => {
   try {
     // const { email } = req.user;
 
-    const  userId  = req.user.id;
-   
+    const userId = req.user.id;
 
-    const user = await User.findById( userId );
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "User not found",
       });
     }
- 
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "User Profile fetch successfully!",
@@ -26,13 +27,12 @@ const getUserProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         mobile: user.mobile,
-        profile_image : user.profile_image,
+        profile_image: user.profile_image,
         role: user.role,
-         is_active : user. is_active,
-       hostVerificationStatus : user.hostVerificationStatus,
-       isVerified : user.isVerified,
+        is_active: user.is_active,
+        hostVerificationStatus: user.hostVerificationStatus,
+        isVerified: user.isVerified,
       },
-      
     });
   } catch (error) {
     console.log("profile fetching error :", error);
@@ -43,149 +43,165 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-const updatePasswordUser = async ( req, res ) => {
+const updatePasswordUser = async (req, res) => {
   try {
-    const userId  = req.user.id ;
-    const { currentPassword , newPassword } =  req.body;
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
 
     const user = await User.findById(userId);
-    if ( !user ) {
+    if (!user) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        message : "User not found",
+        success: false,
+        message: "User not found",
       });
-    };
+    }
 
-    const isMatch = await comparePassword( currentPassword, user.password);
-    if ( !isMatch ) {
+    const isMatch = await comparePassword(currentPassword, user.password);
+    if (!isMatch) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success : false,
-        message : "Incorrect current password",
+        success: false,
+        message: "Incorrect current password",
       });
-    };
+    }
 
-    if ( currentPassword === newPassword ) {
+    if (currentPassword === newPassword) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success : false,
-        message : "New password cannot be the same as currentPassword",
+        success: false,
+        message: "New password cannot be the same as currentPassword",
       });
-    };
+    }
 
     const hashedPassword = await hashPassword(newPassword);
     user.password = hashedPassword;
     await user.save();
 
+    await createNotification(req.io, {
+      userId,
+      role: "user",
+      type: "security",
+      message: "Your password was updated successfully.",
+      reason: "password_change",
+      iconType: "lock",
+    });
+
     return res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      message : "Password updated successfully",
+      success: true,
+      message: "Password updated successfully",
     });
-  } catch ( error ) {
+  } catch (error) {
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "server error",
+      success: false,
+      message: "server error",
     });
-  };
+  }
 };
 
-const updateProfileUser = async ( req, res ) => {
+const updateProfileUser = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name , mobile, profile_image } = req.body;
+    const { name, mobile, profile_image } = req.body;
 
     const existUser = await User.findById(userId);
-    if ( !existUser ) {
+    if (!existUser) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        message : "User not found",
-      })
-    };
-     
-    if ( name ) existUser.name = name ;
-    if ( mobile) existUser.mobile = mobile;
-    if ( profile_image ) existUser.profile_image = profile_image;
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (name) existUser.name = name;
+    if (mobile) existUser.mobile = mobile;
+    if (profile_image) existUser.profile_image = profile_image;
     await existUser.save();
 
-      return res.status(STATUS_CODE.SUCCESS).json({
-        success : true,
-        message : "User Profile updated successfully",
-        user : {
-          id : existUser._id,
-          name : existUser.name,
-          email : existUser.email,
-          mobile : existUser.mobile,
-          profile_image : existUser.profile_image,
-          role : existUser.role,
-        }
-      });
-    } catch ( error ) {
-      console.error("Profile update error:", error );
-      return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-        success : false,
-        message : "Something went wrong",
-      });
-    };
-};
-
-
-const getUserSidebarDetails = async ( req, res ) => {
-  try {
-    const userId = req.user.id;
-  
-    const user = await User.findById( userId ).select("name profile_image");
-
-    if ( !user ) {
-      return res.status(STATUS_CODE.NOT_FOUND).json({
-         success : false,
-         message : "User not found"
-      });
-    };
+    await createNotification(req.io, {
+      userId,
+      role: "user",
+      type: "profile",
+      message: "Your profile has been updated.",
+      reason: "profile_update",
+      iconType: "user",
+    });
 
     return res.status(STATUS_CODE.SUCCESS).json({
-      name : user.name,
-      profile_image : user.profile_image
-
+      success: true,
+      message: "User Profile updated successfully",
+      user: {
+        id: existUser._id,
+        name: existUser.name,
+        email: existUser.email,
+        mobile: existUser.mobile,
+        profile_image: existUser.profile_image,
+        role: existUser.role,
+      },
     });
-  } catch ( error ) {
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Something went wrong",
+    });
+  }
+};
+
+const getUserSidebarDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select("name profile_image");
+
+    if (!user) {
+      return res.status(STATUS_CODE.NOT_FOUND).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(STATUS_CODE.SUCCESS).json({
+      name: user.name,
+      profile_image: user.profile_image,
+    });
+  } catch (error) {
     console.log("Error fetching sidebar details:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Server error",
-    })
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
-
-const getHostRequestedStatus = async ( req, res ) => {
+const getHostRequestedStatus = async (req, res) => {
   try {
-
     const userId = req.user.id;
     const user = await User.findById(userId);
-    
-    if ( !user ) {
+
+    if (!user) {
       return res.status(STATUS_CODE.NOT_FOUND).josn({
-        success : false,
-        message : "User not found",
+        success: false,
+        message: "User not found",
       });
-    };
+    }
 
     res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      status : user.hostVerificationStatus,
-      reason : user.hostVerificationStatus === "rejected" ? user.hostVerificationRejectionReason : null,
+      success: true,
+      status: user.hostVerificationStatus,
+      reason:
+        user.hostVerificationStatus === "rejected"
+          ? user.hostVerificationRejectionReason
+          : null,
     });
-  } catch ( error ) {
+  } catch (error) {
     res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Server error",
+      success: false,
+      message: "Server error",
     });
   }
 };
 
-
 module.exports = {
-    getUserProfile,
-    updatePasswordUser,
-    updateProfileUser,
-    getUserSidebarDetails,
-    getHostRequestedStatus,
-}
+  getUserProfile,
+  updatePasswordUser,
+  updateProfileUser,
+  getUserSidebarDetails,
+  getHostRequestedStatus,
+};
