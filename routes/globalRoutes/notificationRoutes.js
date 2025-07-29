@@ -8,9 +8,9 @@ const {
 } = require("../../controllers/globalController/notificationController");
 const   verifyToken  = require("../../middlewares/verifyTokenMiddleware");
 
-router.route("/all_notifications").get( verifyToken, getNotificationsByUser);
+router.route("/all-notifications").get( verifyToken, getNotificationsByUser);
 
-router.route("/mark-read").patch( verifyToken,markNotificationAsRead);
+ router.route("/mark-read/:notificationId").patch(verifyToken, markNotificationAsRead);
 
 router.route("/mark-all-read").patch( verifyToken, markAllAsRead);
 
