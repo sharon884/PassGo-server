@@ -135,6 +135,8 @@ const verifyPayment = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
+   let transactionCommitted = false; 
+
   try {
     const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } =
       req.body;
@@ -181,6 +183,7 @@ const verifyPayment = async (req, res) => {
 
     if (paidTicket.status === "paid") {
       await session.commitTransaction();
+        transactionCommitted = true;
       session.endSession();
       return res.status(STATUS_CODE.CONFLICT).json({
         success: true,
@@ -260,11 +263,13 @@ const verifyPayment = async (req, res) => {
     );
 
     await session.commitTransaction();
+    transactionCommitted = true;
     session.endSession();
 
     await createNotification(req.io, {
       userId: user._id,
       role: "user",
+      roleRef: "User",
       type: "booking",
       title: "Booking Confirmed",
       message: `Your seat(s) for '${event.title}' have been successfully booked.`,
@@ -278,6 +283,7 @@ const verifyPayment = async (req, res) => {
       await createNotification(req.io, {
         userId: process.env.SUPER_ADMIN_ID,
         role: "admin",
+        roleRef: "Admin",
         type: "booking",
         message: `High volume seat booking: User '${user.name}' booked ${seatNumbers.length} seat(s) worth ₹${paidTicket.finalAmount} for '${event.title}'.`,
         reason: "high_volume_booking",
@@ -293,8 +299,11 @@ const verifyPayment = async (req, res) => {
       status: "booked",
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (!transactionCommitted) {
+      await session.abortTransaction();
+    }
     session.endSession();
+    console.error("Payment verification error:", error);
     console.log("Payment verification error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,

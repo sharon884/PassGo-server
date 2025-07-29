@@ -45,7 +45,7 @@ roleRef: {
 
   iconType: {
     type: String,
-    enum: ['info', 'success', 'warning', 'error'],
+    enum: ['info', 'success', 'warning', 'error', 'alert'],
     default: 'info',
   },
 

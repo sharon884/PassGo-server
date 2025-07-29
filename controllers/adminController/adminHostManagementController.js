@@ -7,6 +7,7 @@ const {
 } = require("../../Services/notifications/notificationServices");
 
 const getPendingHostRequests = async (req, res) => {
+  console.log(req.user.id)
   try {
     const pendingUsers = await User.find({
       verifyRequested: true,
