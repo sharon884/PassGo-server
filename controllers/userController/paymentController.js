@@ -14,7 +14,10 @@ const generateQrCodeImage = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
 const Offer = require("../../models/offerModel");
 const mongoose = require("mongoose");
-const Wallet = require("../../models/walletModel")
+const Wallet = require("../../models/walletModel");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const createOrder = async (req, res) => {
   try {
@@ -128,18 +131,13 @@ const createOrder = async (req, res) => {
   }
 };
 
-
 const verifyPayment = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const {
-      orderId,
-      razorpayPaymentId,
-      razorpayOrderId,
-      razorpaySignature,
-    } = req.body;
+    const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } =
+      req.body;
 
     if (
       !orderId ||
@@ -196,16 +194,20 @@ const verifyPayment = async (req, res) => {
     await paidTicket.save({ session });
 
     // Admin wallet update
-    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(session);
+    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(
+      session
+    );
     if (!adminWallet) {
-      adminWallet = await Wallet.create([{ walletType: "admin", balance: 0 }], { session });
+      adminWallet = await Wallet.create([{ walletType: "admin", balance: 0 }], {
+        session,
+      });
       adminWallet = adminWallet[0];
     }
 
     adminWallet.balance += paidTicket.finalAmount;
     await adminWallet.save({ session });
 
-    const seatNumbers = paidTicket.seats.map(seat => seat.seatNumber).flat();
+    const seatNumbers = paidTicket.seats.map((seat) => seat.seatNumber).flat();
     if (seatNumbers.length > 0) {
       await Seat.updateMany(
         {
@@ -240,23 +242,48 @@ const verifyPayment = async (req, res) => {
     await paidTicket.save({ session });
 
     await Transaction.create(
-      [{
-        userId: user._id,
-        eventId: event._id,
-        orderId: paidTicket._id,
-        amount: paidTicket.finalAmount,
-        type: "payment",
-        method: "razorpay",
-        role: "user",
-        walletType: "admin",
-        description: `Seat booking for event: ${event.title}`,
-        balanceAfterTransaction: adminWallet.balance,
-      }],
+      [
+        {
+          userId: user._id,
+          eventId: event._id,
+          orderId: paidTicket._id,
+          amount: paidTicket.finalAmount,
+          type: "payment",
+          method: "razorpay",
+          role: "user",
+          walletType: "admin",
+          description: `Seat booking for event: ${event.title}`,
+          balanceAfterTransaction: adminWallet.balance,
+        },
+      ],
       { session }
     );
 
     await session.commitTransaction();
     session.endSession();
+
+    await createNotification(req.io, {
+      userId: user._id,
+      role: "user",
+      type: "booking",
+      title: "Booking Confirmed",
+      message: `Your seat(s) for '${event.title}' have been successfully booked.`,
+      reason: "payment_success",
+      iconType: "success",
+      link: `/user/bookings/${paidTicket._id}`,
+      eventId: event._id,
+    });
+
+    if (seatNumbers.length >= 5 || paidTicket.finalAmount >= 1000) {
+      await createNotification(req.io, {
+        userId: process.env.SUPER_ADMIN_ID,
+        role: "admin",
+        type: "booking",
+        message: `High volume seat booking: User '${user.name}' booked ${seatNumbers.length} seat(s) worth ₹${paidTicket.finalAmount} for '${event.title}'.`,
+        reason: "high_volume_booking",
+        iconType: "alert",
+      });
+    }
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,

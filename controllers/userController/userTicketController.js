@@ -8,12 +8,14 @@ const generateETicket = require("../../utils/generateETicket");
 const PaidTicket = require("../../models/paidTicketModel");
 const User = require("../../models/userModel");
 const Offer = require("../../models/offerModel");
-
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 //Fetch tickets types and price for selecting users
 const getTicketPlans = async (req, res) => {
   try {
-    console.log("hitting or not")
+    console.log("hitting or not");
     const { eventId } = req.params;
 
     const event = await Event.findById(eventId).lean();
@@ -84,7 +86,7 @@ const getAllSeatsByEvent = async (req, res) => {
     })
       .select("_id seatNumber price status category lockExpiresAt ")
       .lean();
-    console.log(seats)
+    console.log(seats);
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "seats fetched successfully",
@@ -193,56 +195,57 @@ const lockSeats = async (req, res) => {
 
 // cron job doing for unlocking seats
 const unlockExpiredSeats = async () => {
-    try {
-        const now = new Date();
+  try {
+    const now = new Date();
 
-        const expiredSeats = await Seat.find({
-            status : "locked",
-            lockExpiresAt : {$lt : now},
+    const expiredSeats = await Seat.find({
+      status: "locked",
+      lockExpiresAt: { $lt: now },
+    });
 
-        });
-
-        if ( expiredSeats.length === 0 ) {
-            return res.status(STATUS_CODE.SUCCESS).json({
-                success : true,
-                message : "No expired seats found",
-            });
-        }
-
-        const expiredSeatIds = expiredSeats.map((seat) => seat._id);
-        const eventId = expiredSeats[0].event;
-
-        await Seat.updateMany({
-            _id : {$in : expiredSeatIds},
-        },
-        {
-            $set : {
-                status : "available",
-                lockExpiresAt : null,
-            },
-        });
-
-        const io = req.app.get("io");
-        if ( io ) {
-            io.to(eventId).emit("seat-unlocked", {
-                seats : expiredSeatIds,
-                eventId,
-            });
-        }
-
-        res.status(STATUS_CODE.SUCCESS).json({
-            success : true,
-            message : `${expiredSeatIds.length} expired locked seats unlocked`,
-            seatIds : expiredSeatIds
-        })
-    }  catch ( error ) {
-        console.log("Error unlocking expired seats:", error);
-        res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-            success : false,
-            message : "Something went wrong while unlockig expired seats",
-        });
+    if (expiredSeats.length === 0) {
+      return res.status(STATUS_CODE.SUCCESS).json({
+        success: true,
+        message: "No expired seats found",
+      });
     }
-}
+
+    const expiredSeatIds = expiredSeats.map((seat) => seat._id);
+    const eventId = expiredSeats[0].event;
+
+    await Seat.updateMany(
+      {
+        _id: { $in: expiredSeatIds },
+      },
+      {
+        $set: {
+          status: "available",
+          lockExpiresAt: null,
+        },
+      }
+    );
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(eventId).emit("seat-unlocked", {
+        seats: expiredSeatIds,
+        eventId,
+      });
+    }
+
+    res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: `${expiredSeatIds.length} expired locked seats unlocked`,
+      seatIds: expiredSeatIds,
+    });
+  } catch (error) {
+    console.log("Error unlocking expired seats:", error);
+    res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Something went wrong while unlockig expired seats",
+    });
+  }
+};
 
 const unlockSeat = async (req, res) => {
   try {
@@ -294,9 +297,7 @@ const unlockSeat = async (req, res) => {
   }
 };
 
-
-//fetch event ticket info for rendering on frontend 
-
+//fetch event ticket info for rendering on frontend
 
 const getEventTicketInfo = async (req, res) => {
   try {
@@ -316,19 +317,19 @@ const getEventTicketInfo = async (req, res) => {
         eventId,
         category,
         type: event.eventType === "free" ? "free" : "paid",
-        status: "booked"
+        status: "booked",
       });
 
       const lockKeys = await redis.keys(`lock:${eventId}:${category}:*`);
       const locked = lockKeys.length;
-        console.log("haiiii")
+      console.log("haiiii");
       const available = total - booked - locked;
 
       ticketStats[category] = {
         total,
         booked,
         locked,
-        available
+        available,
       };
     }
 
@@ -339,24 +340,22 @@ const getEventTicketInfo = async (req, res) => {
         userId,
         eventId,
         type: "free",
-        status: "booked"
+        status: "booked",
       });
       userHasTicket = !!userTicket;
     }
 
-
-  
     const offer = await Offer.findOne({
       eventId,
       isActive: true,
-      expiryDate: { $gte: new Date() }
+      expiryDate: { $gte: new Date() },
     }).lean();
 
     let offerDetails = null;
     if (offer) {
       offerDetails = {
         offerId: offer._id,
-        discountType: offer.discountType,   // "percentage" or "flat"
+        discountType: offer.discountType, // "percentage" or "flat"
         value: offer.value,
         minAmount: offer.minAmount || 0,
         maxDiscount: offer.maxDiscount || null,
@@ -375,7 +374,9 @@ const getEventTicketInfo = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in getEventTicketInfo:", err);
-    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({ message: "Server error" });
+    return res
+      .status(STATUS_CODE.INTERNAL_SERVER_ERROR)
+      .json({ message: "Server error" });
   }
 };
 
@@ -431,18 +432,26 @@ const bookFreeTicket = async (req, res) => {
     });
 
     const user = await User.findById(userId);
-const qrData = `${ticket._id}_${userId}_${eventId}`;
+    const qrData = `${ticket._id}_${userId}_${eventId}`;
 
-const pdfUrl = await generateETicket({
-  ticketId: ticket._id,
-  event,
-  user,
-  qrData,
-});
+    const pdfUrl = await generateETicket({
+      ticketId: ticket._id,
+      event,
+      user,
+      qrData,
+    });
 
-ticket.eticketUrl = pdfUrl;
-await ticket.save();
+    ticket.eticketUrl = pdfUrl;
+    await ticket.save();
 
+    await createNotification(req.io, {
+      userId,
+      role: "user",
+      type: "ticket",
+      message: `Free ticket booked for event "${event.title}" in ${category} category.`,
+      reason: "free_ticket_booking",
+      iconType: "ticket",
+    });
 
     return res.status(201).json({ message: "Ticket booked", ticket });
   } catch (err) {
@@ -462,7 +471,9 @@ const lockPaidTickets = async (req, res) => {
     }
 
     if (!quantity || quantity < 1 || quantity > 5) {
-      return res.status(400).json({ message: "You can lock between 1 and 5 tickets only" });
+      return res
+        .status(400)
+        .json({ message: "You can lock between 1 and 5 tickets only" });
     }
 
     const event = await Event.findById(eventId);
@@ -493,7 +504,8 @@ const lockPaidTickets = async (req, res) => {
 
     if (existingLock) {
       return res.status(400).json({
-        message: "You already locked tickets. Please complete payment or wait 5 mins.",
+        message:
+          "You already locked tickets. Please complete payment or wait 5 mins.",
       });
     }
 
@@ -514,8 +526,6 @@ const lockPaidTickets = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
-
 
 const unlockPaidTickets = async (req, res) => {
   try {
@@ -538,13 +548,17 @@ const unlockPaidTickets = async (req, res) => {
   }
 };
 
-
 const getCheckoutDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
     const { seatIds } = req.body;
 
-    if (!eventId || !seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+    if (
+      !eventId ||
+      !seatIds ||
+      !Array.isArray(seatIds) ||
+      seatIds.length === 0
+    ) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Event ID and seat IDs are required",
@@ -606,16 +620,15 @@ const getCheckoutDetails = async (req, res) => {
   }
 };
 
-
 module.exports = {
   getTicketPlans,
   lockSeats,
-  unlockExpiredSeats ,
+  unlockExpiredSeats,
   getAllSeatsByEvent,
   unlockSeat,
-   getEventTicketInfo,
-    bookFreeTicket,
-    lockPaidTickets,
-    unlockPaidTickets,
-    getCheckoutDetails,
+  getEventTicketInfo,
+  bookFreeTicket,
+  lockPaidTickets,
+  unlockPaidTickets,
+  getCheckoutDetails,
 };

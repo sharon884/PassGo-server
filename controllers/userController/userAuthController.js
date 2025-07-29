@@ -11,6 +11,9 @@ const sendMail = require("../../utils/sendMail");
 const OTP = require("../../models/otpModel");
 const verifyGoogleToken = require("../../utils/verifyGoogleToken");
 const generateReferralCode = require("../../utils/generateReferralCode");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 //User signup
 const signupUser = async (req, res) => {
@@ -192,7 +195,7 @@ const googleSignupUser = async (req, res) => {
       profile_image: googleData.profile_image,
       googleId: googleData.googleId,
       is_active: true,
-      isVerified : true,
+      isVerified: true,
       isGoogleAccount: true,
       referralCode: referralCodeForUser,
       role: "user",
@@ -209,7 +212,6 @@ const googleSignupUser = async (req, res) => {
 
     await User.findByIdAndUpdate(newUser._id, {
       refreshToken: refreshToken,
-    
     });
 
     res.cookie("accessToken", accessToken, {
@@ -224,6 +226,15 @@ const googleSignupUser = async (req, res) => {
       secure: true,
       sameSite: "strict",
       maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    await createNotification(req.io, {
+      userId: newUser._id,
+      role: "user",
+      type: "account",
+      message: "Welcome to Pass-Go! Your account was created using Google.",
+      reason: "signup_success",
+      iconType: "success",
     });
 
     res.status(STATUS_CODE.CREATED).json({
@@ -349,6 +360,15 @@ const forgetPasswordUser = async (req, res) => {
     await sendMail(email, "your OTP code", `Your OTP code is :${plainOtp}`);
     console.log(plainOtp);
 
+    await createNotification(req.io, {
+      userId: existUser._id,
+      role: "user",
+      type: "security",
+      message: "A password reset OTP was sent to your email.",
+      reason: "password_reset_requested",
+      iconType: "info",
+    });
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Please veify your account using the otp sent to your email",
@@ -473,6 +493,15 @@ const resetPasswordUser = async (req, res) => {
     const hashedPassword = await hashPassword(password);
     user.password = hashedPassword;
     await user.save();
+
+    await createNotification(req.io, {
+      userId: user._id,
+      role: "user",
+      type: "security",
+      message: "Your password was successfully updated.",
+      reason: "password_reset_success",
+      iconType: "success",
+    });
 
     return res.status(STATUS_CODE.CREATED).json({
       success: true,

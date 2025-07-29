@@ -6,6 +6,9 @@ const verifyRazorpaySignature = require("../../utils/verifyRazorpaySignature");
 const Transaction = require("../../models/transactionModel");
 const Wallet = require("../../models/walletModel");
 const mongoose = require("mongoose");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const getAdvanceAmount = async (req, res) => {
   try {
@@ -80,14 +83,13 @@ const createAdvanceOrder = async (req, res) => {
   }
 };
 
-
-
 const verifyAdvancePayment = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { razorpayPaymentId, razorpayOrderId, razorpaySignature, eventId } = req.body;
+    const { razorpayPaymentId, razorpayOrderId, razorpaySignature, eventId } =
+      req.body;
 
     const isValid = verifyRazorpaySignature(
       razorpayOrderId,
@@ -121,7 +123,9 @@ const verifyAdvancePayment = async (req, res) => {
 
     const advanceAmount = Math.ceil(event.estimatedRevenue * 0.2) || 200;
 
-    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(session);
+    let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(
+      session
+    );
     if (!adminWallet) {
       adminWallet = new Wallet({ walletType: "admin", balance: 0 });
     }
@@ -130,22 +134,49 @@ const verifyAdvancePayment = async (req, res) => {
     await adminWallet.save({ session });
 
     await Transaction.create(
-      [{
-        userId: req.user.id,
-        eventId: event._id,
-        amount: advanceAmount,
-        type: "advance_payment",
-        method: "razorpay",
-        role: "host",
-        walletType: "admin",
-        description: `Advance payment collected from host for event: ${event.title}`,
-        balanceAfterTransaction: adminWallet.balance,
-      }],
+      [
+        {
+          userId: req.user.id,
+          eventId: event._id,
+          amount: advanceAmount,
+          type: "advance_payment",
+          method: "razorpay",
+          role: "host",
+          walletType: "admin",
+          description: `Advance payment collected from host for event: ${event.title}`,
+          balanceAfterTransaction: adminWallet.balance,
+        },
+      ],
       { session }
     );
 
     await session.commitTransaction();
     session.endSession();
+
+    await createNotification(req.io, {
+      userId: req.user.id,
+      role: "host",
+      type: "payment",
+      title: "Advance Payment Successful",
+      message: `Your advance payment for '${event.title}' has been received. The event is now submitted for admin approval.`,
+      reason: "advance_paid",
+      iconType: "success",
+      eventId: event._id,
+      link: `/host/event/${event._id}`,
+    });
+
+    // Notify Admin
+    await createNotification(req.io, {
+      userId: process.env.SUPER_ADMIN_ID,
+      role: "admin",
+      type: "event_request",
+      title: "New Event Submitted",
+      message: `Host has submitted the event '${event.title}' after advance payment. Please review it.`,
+      reason: "event_submission",
+      iconType: "info",
+      eventId: event._id,
+      link: `/admin/event/${event._id}`,
+    });
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -162,7 +193,6 @@ const verifyAdvancePayment = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   getAdvanceAmount,

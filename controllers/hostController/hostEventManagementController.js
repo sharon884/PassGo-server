@@ -1,6 +1,8 @@
 const Event = require("../../models/eventModel");
 const STATUS_CODE = require("../../constants/statuscodes");
-// const generateSeatsForEvent = require("../../utils/seatHelper");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const createDraftEvent = async (req, res) => {
   try {
@@ -30,7 +32,11 @@ const createDraftEvent = async (req, res) => {
     }
 
     // Validate eventType
-    const allowedEventTypes = ["free", "paid_stage_without_seats", "paid_stage_with_seats"];
+    const allowedEventTypes = [
+      "free",
+      "paid_stage_without_seats",
+      "paid_stage_with_seats",
+    ];
     if (!allowedEventTypes.includes(eventType)) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
@@ -86,164 +92,171 @@ const createDraftEvent = async (req, res) => {
   }
 };
 
-
-const submitEventAfterPayment = async ( req, res ) => {
-    try {
-        const hostId = req.user.id;
-        const { eventId } = req.params;
-
-        const event = await Event.findOne({_id : eventId, host : hostId });
-
-        if ( !event ) {
-            return res.status(STATUS_CODE.NOT_FOUND).json({
-                success : false,
-                message : "Event not found"
-            });
-        };
-
-        if ( event.advancePaid !== true ) {
-            return res.status(STATUS_CODE.BAD_REQUEST).json({
-                success : false,
-                message : "Advance payment not completed "
-            });
-        };
-
-        event.status = "requested";
-        await event.save();
-
-        //  try {
-
-        //    await generateSeatsForEvent(event);
-        //  } catch ( error ) {
-        //    console.log("seat generation failed:", error);
-        //   throw err;
-        // }
-
-        return res.status(STATUS_CODE.CREATED).json({
-            success : false,
-            message : "Event submitted for admin approval.",
-        });
-    } catch ( error ) {
-        console.error("SubmitEventAfterPayment error:",error);
-        return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-            success : false,
-            message : "Something went wrong while submiting the event.",
-        })
-    };
-};
-
-
-const getHostEvents = async ( req, res ) => {
-
+const submitEventAfterPayment = async (req, res) => {
   try {
     const hostId = req.user.id;
-    const events = await Event.find({ host : hostId }).sort({createdAt : -1});
-    if ( !events ) {
+    const { eventId } = req.params;
+
+    const event = await Event.findOne({ _id: eventId, host: hostId });
+
+    if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        messge : "No Events "
+        success: false,
+        message: "Event not found",
       });
     }
-     return res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      message : "Fetch events successfully",
-      events,
-     });
 
-  } catch ( error ) {
-    console.log("Error Fetching host events",error);
-    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Internal server error"
+    if (event.advancePaid !== true) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Advance payment not completed ",
+      });
+    }
+
+    event.status = "requested";
+    await event.save();
+
+    // Notify host
+    await createNotification(req.io, {
+      userId: hostId,
+      role: "host",
+      type: "event",
+      message: `Your event '${event.title}' has been submitted for admin approval.`,
+      reason: "event_submitted",
+      iconType: "info",
+      link: "/host/my-events",
     });
-  };
+
+    // Notify admin
+    await createNotification(req.io, {
+      userId: process.env.SUPER_ADMIN_ID,
+      role: "admin",
+      type: "event",
+      message: `New event submission by host '${req.user.name}' - '${event.title}'`,
+      reason: "new_event_submission",
+      iconType: "info",
+      link: `/admin/events/pending`,
+    });
+
+    return res.status(STATUS_CODE.CREATED).json({
+      success: false,
+      message: "Event submitted for admin approval.",
+    });
+  } catch (error) {
+    console.error("SubmitEventAfterPayment error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Something went wrong while submiting the event.",
+    });
+  }
+};
+
+const getHostEvents = async (req, res) => {
+  try {
+    const hostId = req.user.id;
+    const events = await Event.find({ host: hostId }).sort({ createdAt: -1 });
+    if (!events) {
+      return res.status(STATUS_CODE.NOT_FOUND).json({
+        success: false,
+        messge: "No Events ",
+      });
+    }
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "Fetch events successfully",
+      events,
+    });
+  } catch (error) {
+    console.log("Error Fetching host events", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };
 
 //Get Event Details by Id For shwoing in the Host Event Editing page
-const getEventDetails = async ( req, res ) => {
+const getEventDetails = async (req, res) => {
   const { eventId } = req.params;
-  const  hostId  = req.user.id;
+  const hostId = req.user.id;
   try {
     const event = await Event.findById(eventId);
-    if ( !event ) {
+    if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false,
-        message : "Event not found",
+        success: false,
+        message: "Event not found",
       });
+    }
 
-    } 
-
-    if ( event.host.toString() !== hostId.toString() ) {
+    if (event.host.toString() !== hostId.toString()) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success : false,
-        message : "Requested Event is not matching with your credentils"
+        success: false,
+        message: "Requested Event is not matching with your credentils",
       });
     }
 
     return res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      message : "Fetch Event successfully",
-      data : {event},
-    })
-  } catch ( error ) {
-        console.error("Error fetching event:", error.message);
+      success: true,
+      message: "Fetch Event successfully",
+      data: { event },
+    });
+  } catch (error) {
+    console.error("Error fetching event:", error.message);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message : "Internal server error",
-    })
-  };
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };
 
-
- const updateEvent = async ( req, res ) => {
+const updateEvent = async (req, res) => {
   const { eventId } = req.params;
   const hostId = req.user.id;
   const updatedData = req.body;
   try {
     const event = await Event.findById(eventId);
-    if ( !event ) {
+    if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
-        success : false, 
-        message : "Event not found",
-      })
-    };
-
-    if ( event.host.toString() !== hostId.toString() ) {
-      return res.status(STATUS_CODE.FORBIDDEN).json({
-        success : false,
-        message : "You are not authorized to update this event",
+        success: false,
+        message: "Event not found",
       });
-    };
+    }
 
-     if ( event.advancePaid !== true ) {
-            return res.status(STATUS_CODE.BAD_REQUEST).json({
-                success : false,
-                message : "Advance payment not completed "
-            });
-        };
+    if (event.host.toString() !== hostId.toString()) {
+      return res.status(STATUS_CODE.FORBIDDEN).json({
+        success: false,
+        message: "You are not authorized to update this event",
+      });
+    }
 
-    Object.assign(event,updatedData);
+    if (event.advancePaid !== true) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Advance payment not completed ",
+      });
+    }
+
+    Object.assign(event, updatedData);
     await event.save();
 
     return res.status(STATUS_CODE.SUCCESS).json({
-      success : true,
-      message : "Event updated successfully",
-      data : {event},
+      success: true,
+      message: "Event updated successfully",
+      data: { event },
     });
-  } catch ( error ) {
+  } catch (error) {
     console.log("Error updating event", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
-      success : false,
-      message :"Internal server error",
+      success: false,
+      message: "Internal server error",
     });
-
-  };
+  }
 };
 
 module.exports = {
-   createDraftEvent,
-   submitEventAfterPayment,
-    getHostEvents,
-    getEventDetails,
-    updateEvent,
-}
+  createDraftEvent,
+  submitEventAfterPayment,
+  getHostEvents,
+  getEventDetails,
+  updateEvent,
+};

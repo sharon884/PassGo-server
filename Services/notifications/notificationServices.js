@@ -5,8 +5,12 @@ const createNotification = async (io, { userId, role, type, message, reason }) =
     userId,
     role,
     type,
+    title,
     message,
     reason,
+    link,
+    eventId,
+    iconType,
   });
 
   console.log(userId);
