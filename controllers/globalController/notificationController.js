@@ -85,7 +85,7 @@ const markAllAsRead = async (req, res) => {
 
 const deleteReadNotifications = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const  userId  = req.user.id;
 
     await Notification.deleteMany({ userId, read: true });
 
