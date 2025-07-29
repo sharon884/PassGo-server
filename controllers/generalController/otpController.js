@@ -5,7 +5,10 @@ const STATUS_CODE = require("../../constants/statuscodes");
 const User = require("../../models/userModel");
 const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
-const { generateAccessToken, generateRefreshToken } = require("../../utils/jwt");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../../utils/jwt");
 const mongoose = require("mongoose");
 const createNotification = require("../../Services/notifications/notificationServices");
 
@@ -168,7 +171,7 @@ const verifyOTP = async (req, res) => {
 
         await createNotification(req.io, {
           userId: user.referredBy,
-          role: "user", 
+          role: "user",
           type: "referral",
           message: `You earned ₹${rewardAmount} for referring ${user.name}`,
           reason: "referral_bonus",
@@ -208,6 +211,18 @@ const verifyOTP = async (req, res) => {
         referralMessage = ".";
       }
 
+      await createNotification(req.io, {
+        userId: user._id,
+        role: role,
+        type: "account",
+        title: "Account Verified",
+        message:
+          "Your account has been successfully verified! Welcome aboard 🎉",
+        reason: "account_verified",
+        iconType: "success",
+        link: "/user/profile",
+      });
+
       return res.status(STATUS_CODE.SUCCESS).json({
         success: true,
         message: "OTP verified successfully" + referralMessage,
@@ -215,14 +230,6 @@ const verifyOTP = async (req, res) => {
     } catch (transactionError) {
       await session.abortTransaction();
       session.endSession();
-
-      await createNotification(req.io, {
-        userId: userId,
-        role: role,
-        type: "account",
-        message: "Your account has been successfully verified!",
-        reason: "otp_verified",
-      });
       console.log("Transaction Error:", transactionError);
       return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
         success: false,
@@ -265,13 +272,13 @@ const resendOTP = async (req, res) => {
 
     await OTP.create({
       user_id: user._id,
-       user_role : user.role,
+      user_role: user.role,
       otp: hashedOtp,
       expiresAt,
     });
 
     await sendMail(email, "Your OTP code", `your new OTP is : ${plainOtp}`);
-    console.log(plainOtp)
+    console.log(plainOtp);
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
