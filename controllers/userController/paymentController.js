@@ -266,9 +266,12 @@ const verifyPayment = async (req, res) => {
       userId: user._id,
       role: "user",
       type: "booking",
+      title: "Booking Confirmed",
       message: `Your seat(s) for '${event.title}' have been successfully booked.`,
       reason: "payment_success",
       iconType: "success",
+      link: `/user/bookings/${paidTicket._id}`,
+      eventId: event._id,
     });
 
     if (seatNumbers.length >= 5 || paidTicket.finalAmount >= 1000) {
