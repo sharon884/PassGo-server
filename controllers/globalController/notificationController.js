@@ -35,6 +35,35 @@ const getNotificationsByUser = async (req, res) => {
 };
 
 
+const markNotificationAsRead = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    const updated = await Notification.findByIdAndUpdate(
+      notificationId,
+      { read: true },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res
+        .status(STATUS_CODE.NOT_FOUND)
+        .json({ success: false, message: "Not found" });
+    }
+
+    return res
+      .status(STATUS_CODE.SUCCESS)
+      .json({ success: true, data: updated });
+  } catch (error) {
+    console.error("Mark read error:", error);
+    return res
+      .status(STATUS_CODE.INTERNAL_SERVER_ERROR)
+      .json({ success: false, message: "Server error" });
+  }
+};
+
+
+
 module.exports = {
   getNotificationsByUser,
   markNotificationAsRead,
