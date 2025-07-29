@@ -6,13 +6,14 @@ const {
   markAllAsRead,
   deleteReadNotifications,
 } = require("../../controllers/globalController/notificationController");
+const   verifyToken  = require("../../middlewares/verifyTokenMiddleware");
 
-router.route("/notifications").get(  getNotificationsByUser);
+router.route("/notifications").get( verifyToken, getNotificationsByUser);
 
-router.route("/:notificationId/mark-read").patch( markNotificationAsRead);
+router.route("/:notificationId/mark-read").patch( verifyToken,markNotificationAsRead);
 
-router.route("/notifications/mark-all-read").patch( markAllAsRead);
+router.route("/notifications/mark-all-read").patch( verifyToken, markAllAsRead);
 
-router.route("/notifications/delete-read").delete( deleteReadNotifications);
+router.route("/notifications/delete-read").delete( verifyToken, deleteReadNotifications);
 
 module.exports = router;
