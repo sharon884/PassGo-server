@@ -11,7 +11,7 @@ const morgan = require("morgan");
 const http = require("http");
 const initializeSocket = require("./socket/socket");
 const startUnlockSeatsCron = require("./cron/unlockSeatsCron");
-const eventAnalytics = require("./routes/golbalRoutes/evetAnalytics");
+const eventAnalytics = require("./routes/globalRoutes/evetAnalytics");
 const { globalLimiter } = require("./middlewares/rateLimiter/ratelimiter");
 const notificationRoutes = require("./routes/globalRoutes/notificationRoutes")
 
