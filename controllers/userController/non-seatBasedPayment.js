@@ -14,7 +14,9 @@ const generateETicket = require("../../utils/generateETicket");
 const Transaction = require("../../models/transactionModel");
 const Offer = require("../../models/offerModel");
 const mongoose = require("mongoose");
-
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const createOrderWithoutSeats = async (req, res) => {
   try {
@@ -223,6 +225,15 @@ const verifyPaymentWithoutSeats = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    await createNotification(req.io, {
+      userId: userId,
+      role: "user",
+      type: "booking",
+      message: `Your ticket for '${event.title}' has been booked successfully.`,
+      reason: "payment_success",
+      iconType: "success",
+    });
 
     const redisKey = `lock:${order.eventId}:${order.category}:${userId}`;
     await redis.del(redisKey);
