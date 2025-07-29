@@ -235,6 +235,17 @@ const verifyPaymentWithoutSeats = async (req, res) => {
       iconType: "success",
     });
 
+    if (order.quantity >= 5 || order.finalAmount >= 1000) {
+      await createNotification(req.io, {
+        userId: process.env.SUPER_ADMIN_ID,
+        role: "admin",
+        type: "booking",
+        message: `High volume booking: User '${user.name}' booked ${order.quantity} ticket(s) worth ₹${order.finalAmount} for '${event.title}'.`,
+        reason: "high_volume_booking",
+        iconType: "alert",
+      });
+    }
+
     const redisKey = `lock:${order.eventId}:${order.category}:${userId}`;
     await redis.del(redisKey);
 

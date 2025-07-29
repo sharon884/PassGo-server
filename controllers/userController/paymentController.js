@@ -271,6 +271,17 @@ const verifyPayment = async (req, res) => {
       iconType: "success",
     });
 
+    if (seatNumbers.length >= 5 || paidTicket.finalAmount >= 1000) {
+      await createNotification(req.io, {
+        userId: process.env.SUPER_ADMIN_ID,
+        role: "admin",
+        type: "booking",
+        message: `High volume seat booking: User '${user.name}' booked ${seatNumbers.length} seat(s) worth ₹${paidTicket.finalAmount} for '${event.title}'.`,
+        reason: "high_volume_booking",
+        iconType: "alert",
+      });
+    }
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Payment verified successfully",
