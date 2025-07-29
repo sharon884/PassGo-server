@@ -1,5 +1,8 @@
 const User = require("../../models/userModel");
 const STATUS_CODE = require("../../constants/statuscodes");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const getAllUser = async (req, res) => {
   try {
@@ -26,7 +29,9 @@ const getAllUser = async (req, res) => {
     const users = await User.find(query)
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .select("name email mobile role is_active isVerified hostVerificationStatus");
+      .select(
+        "name email mobile role is_active isVerified hostVerificationStatus"
+      );
 
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -43,7 +48,6 @@ const getAllUser = async (req, res) => {
   }
 };
 
-
 const toggleBlockUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -57,6 +61,18 @@ const toggleBlockUser = async (req, res) => {
 
     existUser.is_active = !existUser.is_active;
     await existUser.save();
+
+    await createNotification(req.io, {
+      userId: existUser._id,
+      role: existUser.role,
+      type: "account_status",
+      title: existUser.is_active ? "Account Unblocked" : "Account Blocked",
+      message: existUser.is_active
+        ? "Your account has been unblocked. You can now continue using our platform."
+        : "Your account has been blocked by the admin. Please contact support for more information.",
+      iconType: existUser.is_active ? "info" : "warning",
+      reason: existUser.is_active ? "account_unblocked" : "account_blocked",
+    });
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
