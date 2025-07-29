@@ -7,12 +7,12 @@ const {
   deleteReadNotifications,
 } = require("../../controllers/globalController/notificationController");
 
-router.get("/:userId", getNotificationsByUser);
+router.route("/notifications").get(  getNotificationsByUser);
 
-router.patch("/:notificationId/mark-read", markNotificationAsRead);
+router.route("/:notificationId/mark-read").patch( markNotificationAsRead);
 
-router.patch("/:userId/mark-all-read", markAllAsRead);
+router.route("/notifications/mark-all-read").patch( markAllAsRead);
 
-router.delete("/:userId/delete-read", deleteReadNotifications);
+router.route("/notifications/delete-read").delete( deleteReadNotifications);
 
 module.exports = router;
