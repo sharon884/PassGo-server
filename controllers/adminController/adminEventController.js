@@ -4,17 +4,19 @@ const genarateSeatsForEvent = require("../../utils/seatHelper");
 const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
-
+const User = require("../../models/userModel");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const getEventsWithFilters = async (req, res) => {
- 
   try {
     const {
       page = 1,
       limit = 10,
       search = "",
       status,
-        isApproved,
+      isApproved,
       sortBy = "createdAt",
       order = "desc",
       advancePaid,
@@ -23,20 +25,20 @@ const getEventsWithFilters = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const query = {};
-   
+
     // Filter by event status
     if (status) {
       query.status = status;
     }
 
-     if ( advancePaid !== undefined) {
-      query.advancePaid = advancePaid === "true"; 
+    if (advancePaid !== undefined) {
+      query.advancePaid = advancePaid === "true";
     }
 
-     if (isApproved !== undefined) {
+    if (isApproved !== undefined) {
       query.isApproved = isApproved === "true";
     }
-  
+
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
@@ -77,7 +79,6 @@ const getEventsWithFilters = async (req, res) => {
   }
 };
 
-
 //approve the event by admin
 const approveEvent = async (req, res) => {
   try {
@@ -105,6 +106,32 @@ const approveEvent = async (req, res) => {
       console.log(" Seats generated for event:", event.title);
     } else {
       console.log("Skipping seat generation: event is not seat-based");
+    }
+
+    await createNotification(req.io, {
+      userId: event.host,
+      role: "host",
+      type: "event_status",
+      title: "Event Approved",
+      message: `Your event '${event.title}' has been approved by the admin.`,
+      reason: "event_approved",
+      iconType: "success",
+      link: `/host/events/${event._id}`,
+    });
+
+    const allUsers = await User.find({ role: "user" });
+
+    for (const user of allUsers) {
+      await createNotification(io, {
+        userId: user._id,
+        role: "user",
+        type: "new_event",
+        title: "New Event Available",
+        message: `A new event '${event.title}' is now live! Check it out.`,
+        reason: "event_approved_public",
+        iconType: "info",
+        link: `/events/${event._id}`,
+      });
     }
 
     return res.status(STATUS_CODE.SUCCESS).json({
@@ -228,6 +255,17 @@ const rejectEvent = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    await createNotification(req.io, {
+      userId: event.host,
+      role: "host",
+      type: "event_status",
+      title: "Event Rejected",
+      message: `Your event '${event.title}' has been rejected by the admin.`,
+      reason: `Reason: ${reason}`,
+      iconType: "error",
+      link: `/host/events/${event._id}`,
+    });
+
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Event rejected and refund processed",
@@ -247,5 +285,5 @@ const rejectEvent = async (req, res) => {
 module.exports = {
   approveEvent,
   rejectEvent,
-  getEventsWithFilters
+  getEventsWithFilters,
 };
