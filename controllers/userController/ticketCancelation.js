@@ -7,6 +7,8 @@ const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
 const { createNotification } = require("../../Services/notifications/notificationServices");
+const adminId = process.env.SUPER_ADMIN_ID;
+
 
 const cancelFreeTicket = async (req, res) => {
   try {
@@ -216,17 +218,27 @@ const cancelPaidTickets = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-
-    for (const { ticketId, refundAmount } of updatedTickets) {
-  await createNotification(req.io, {
+const notificationPromises = updatedTickets.flatMap(({ ticketId, refundAmount }) => [
+  createNotification(req.io, {
     userId,
     role: "user",
     type: "refund",
     message: `₹${refundAmount} refunded for ticket ID ${ticketId}.`,
     reason: "paid_ticket_cancelled",
     iconType: "success",
-  });
-}
+  }),
+  createNotification(req.io, {
+    userId: adminId,
+    role: "admin",
+    type: "refund",
+    message: `₹${refundAmount} refunded to user (ID: ${userId}) for ticket ID ${ticketId}.`,
+    reason: "admin_ticket_refund",
+    iconType: "warning",
+  }),
+]);
+
+await Promise.all(notificationPromises);
+
 
     const io = req.app.get("io");
     if (io) {
