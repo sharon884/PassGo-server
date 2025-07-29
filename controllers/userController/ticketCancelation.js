@@ -6,6 +6,7 @@ const Seat = require("../../models/seatModel");
 const Wallet = require("../../models/walletModel");
 const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
+const { createNotification } = require("../../Services/notifications/notificationServices");
 
 const cancelFreeTicket = async (req, res) => {
   try {
@@ -49,6 +50,17 @@ const cancelFreeTicket = async (req, res) => {
 
     ticket.status = "cancelled";
     await ticket.save();
+
+
+    
+await createNotification(req.io, {
+  userId,
+  role: "user",
+  type: "cancel",
+  message: `Your free ticket for '${event.title}' has been successfully cancelled.`,
+  reason: "free_ticket_cancelled",
+  iconType: "info",
+});
 
     const io = req.app.get("io");
     if (io) {
@@ -203,6 +215,18 @@ const cancelPaidTickets = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+
+    for (const { ticketId, refundAmount } of updatedTickets) {
+  await createNotification(req.io, {
+    userId,
+    role: "user",
+    type: "refund",
+    message: `₹${refundAmount} refunded for ticket ID ${ticketId}.`,
+    reason: "paid_ticket_cancelled",
+    iconType: "success",
+  });
+}
 
     const io = req.app.get("io");
     if (io) {
