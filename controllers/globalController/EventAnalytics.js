@@ -176,46 +176,6 @@ const getEventBookingSummary = async (req, res) => {
     console.log(dailySales)
     const offer = await Offer.findOne({ eventId, isActive : true });
 
-
-    console.log("===== EVENT SUMMARY REPORT =====");
-console.log("Event Details:");
-console.log({
-  _id: event._id,
-  title: event.title,
-  type: event.eventType,
-  date: event.date,
-  category: event.category,
-  location: event.location,
-  images: event.images,
-  description: event.description,
-  status: event.status,
-});
-
-console.log("\nTicket Stats:");
-console.log(ticketStats);
-
-console.log("\nTickets Sold:", ticketsSold);
-console.log("Total Revenue: ₹" + totalRevenue);
-
-console.log("\nDaily Sales:");
-console.log(dailySales);
-
-if (offer) {
-  console.log("\nActive Offer:");
-  console.log({
-    _id: offer._id,
-    discountType: offer.discountType,
-    value: offer.value,
-    expiryDate: offer.expiryDate,
-    createdAt: offer.createdAt
-  });
-} else {
-  console.log("\nNo active offer for this event.");
-}
-
-console.log("===== END OF SUMMARY =====");
-
-
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       data: {
