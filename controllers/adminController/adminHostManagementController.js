@@ -37,7 +37,6 @@ const getPendingHostRequests = async (req, res) => {
 const approveHost = async (req, res) => {
   try {
     const { userId } = req.params;
-    const io = req.app.get("io");
 
     const user = await User.findById(userId);
 
@@ -57,9 +56,10 @@ const approveHost = async (req, res) => {
 
     await redis.set(`userRole : ${user._id}`, "host");
 
-    await createNotification(req.BAD_REQUESTio, {
+    await createNotification(req.io, {
       userId: user._id,
       role: "host",
+      roleRef : "User",
       type: "host_verification",
       title: "Host Verification Approved",
       message: "Congratulations! You are now a verified host.",
@@ -106,6 +106,7 @@ const rejectHost = async (req, res) => {
       userId: user._id,
       role: "host",
       type: "host_verification",
+      roleRef : "User",
       title: "Host Verification Rejected",
       message: `Your request to become a host has been rejected. Reason: ${reason}`,
       iconType: "error",

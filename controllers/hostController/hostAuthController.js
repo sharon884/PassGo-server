@@ -57,7 +57,7 @@ const verifyOtpForHost = async (req, res) => {
         message: "User not found",
       });
     }
-
+    
     if (user.verifyRequested) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
@@ -89,18 +89,21 @@ const verifyOtpForHost = async (req, res) => {
     await createNotification(req.io, {
       userId: user._id,
       role: "user",
+      roleRef : "User",
       type: "verification",
       message: "Your host verification request has been submitted.",
       reason: "host_verification_requested",
       iconType: "info",
       link: "/user/profile",
     });
-
+   
+    console.log(process.env.SUPER_ADMIN_ID);
     // Notify admin
     await createNotification(req.io, {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
       type: "verification",
+      roleRef : "Admin",
       message: `New host verification request from '${user.name}' (${user.email})`,
       reason: "new_host_verification_request",
       iconType: "warning",

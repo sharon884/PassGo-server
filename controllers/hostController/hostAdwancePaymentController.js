@@ -157,6 +157,7 @@ const verifyAdvancePayment = async (req, res) => {
       userId: req.user.id,
       role: "host",
       type: "payment",
+      roleRef : "User",
       title: "Advance Payment Successful",
       message: `Your advance payment for '${event.title}' has been received. The event is now submitted for admin approval.`,
       reason: "advance_paid",
@@ -170,6 +171,7 @@ const verifyAdvancePayment = async (req, res) => {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
       type: "event_request",
+      roleRef : "Admin"
       title: "New Event Submitted",
       message: `Host has submitted the event '${event.title}' after advance payment. Please review it.`,
       reason: "event_submission",
