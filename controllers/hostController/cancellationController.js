@@ -1,6 +1,6 @@
 const CancellationRequest = require("../../models/cancellationRequestModel");
 const Event = require("../../models/eventModel");
-const createNotification = require("../../Services/notifications/notificationServices");
+const { createNotification } = require("../../Services/notifications/notificationServices");
 const STATUS_CODE = require("../../constants/statuscodes");
 
 const requestCancellation = async (req, res) => {

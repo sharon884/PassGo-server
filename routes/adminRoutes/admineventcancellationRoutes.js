@@ -6,6 +6,6 @@ const { approveCancellationRequest } = require("../../controllers/adminControlle
 const router = express.Router();
 
 router.route("/pending").get( verifyToken, getPendingCancellationRequests);
-router.route("/approve/:requestId").post( verifyToken, approveCancellationRequest );
+router.route("/approve/:requestId").patch( verifyToken, approveCancellationRequest );
 
 module.exports = router;

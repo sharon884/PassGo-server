@@ -39,6 +39,7 @@ const getPendingCancellationRequests = async (req, res) => {
 
 
 const approveCancellationRequest = async (req, res) => {
+  console.log("is hitting here or not ")
   const { requestId } = req.params;
   const session = await mongoose.startSession();
   session.startTransaction();
