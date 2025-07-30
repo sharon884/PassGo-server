@@ -9,16 +9,22 @@ exports.getPlatformStats = async () => {
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const currentYearStart = new Date(now.getFullYear(), 0, 1);
 
-  // Total Commission earned (from 'admin_credit' type)
+  // Total Commission earned (from 'commission' type and 'admin' role)
   const totalCommissionAgg = await Transaction.aggregate([
-    { $match: { type: "admin_credit" } },
+    { $match: { type: "commission", role: "admin" } },
     { $group: { _id: null, total: { $sum: "$amount" } } },
   ]);
   const totalCommission = totalCommissionAgg[0]?.total || 0;
 
-  // Monthly Commission (grouped by month)
+  // Monthly Commission (grouped by month for current year)
   const monthlyCommissionAgg = await Transaction.aggregate([
-    { $match: { type: "admin_credit", createdAt: { $gte: currentYearStart } } },
+    {
+      $match: {
+        type: "commission",
+        role: "admin",
+        createdAt: { $gte: currentYearStart },
+      },
+    },
     {
       $group: {
         _id: { month: { $month: "$createdAt" } },
