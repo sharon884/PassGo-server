@@ -1,7 +1,7 @@
-const PaidTicket = require("../models/paidTicketModel");
-const FreeTicket = require("../models/freeTicketModel");
-const Event = require("../models/eventModel");
-const Transaction = require("../models/transactionModel");
+const PaidTicket = require("../../models/paidTicketModel");
+const FreeTicket = require("../../models/freeTicketModel");
+const Event = require("../../models/eventModel");
+const Transaction = require("../../models/transactionModel");
 const mongoose = require("mongoose");
 
 exports.getPlatformStats = async () => {
