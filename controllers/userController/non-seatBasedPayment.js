@@ -212,7 +212,7 @@ const verifyPaymentWithoutSeats = async (req, res) => {
           eventId: event._id,
           orderId: order._id,
           amount: order.finalAmount,
-          type: "payment",
+          type: "ticket-sale",
           method: "razorpay",
           role: "user",
           walletType: "admin",
