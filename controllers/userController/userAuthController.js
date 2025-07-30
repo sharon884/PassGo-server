@@ -61,7 +61,7 @@ const signupUser = async (req, res) => {
 
     await OTP.create({
       user_id: newUser._id,
-      user_role: "User",
+      user_role: "user",
       otp: hashedOtp,
       expiresAt,
     });

@@ -10,7 +10,7 @@ const {
   generateRefreshToken,
 } = require("../../utils/jwt");
 const mongoose = require("mongoose");
-const createNotification = require("../../Services/notifications/notificationServices");
+const { createNotification } = require("../../Services/notifications/notificationServices");
 
 const sendOTP = async (req, res) => {
   try {
@@ -80,6 +80,8 @@ const verifyOTP = async (req, res) => {
 
     const session = await mongoose.startSession();
     session.startTransaction();
+
+     let transactionCommitted = false; 
 
     try {
       const user = await User.findById(userId).session(session);
@@ -187,6 +189,7 @@ const verifyOTP = async (req, res) => {
       await OTP.deleteMany({ user_id: userId }).session(session);
 
       await session.commitTransaction();
+       transactionCommitted = true;
       session.endSession();
 
       res.cookie("accessToken", accessToken, {
@@ -216,6 +219,7 @@ const verifyOTP = async (req, res) => {
         role: role,
         type: "account",
         title: "Account Verified",
+        roleRef : "User",
         message:
           "Your account has been successfully verified! Welcome aboard 🎉",
         reason: "account_verified",
@@ -227,10 +231,12 @@ const verifyOTP = async (req, res) => {
         success: true,
         message: "OTP verified successfully" + referralMessage,
       });
-    } catch (transactionError) {
+    } catch (error) {
+     if (!transactionCommitted) {
       await session.abortTransaction();
+    }
       session.endSession();
-      console.log("Transaction Error:", transactionError);
+      console.log("Transaction Error:", error);
       return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
         success: false,
         message: "Failed during referral reward logic",
