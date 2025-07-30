@@ -1,5 +1,5 @@
-const Event = require("../models/eventModel");
-const Transaction = require("../models/transactionModel");
+const Event = require("../../models/eventModel");
+const Transaction = require("../../models/transactionModel");
 
 const getPlatformStats = async () => {
   const now = new Date();
