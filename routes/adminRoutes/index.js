@@ -6,7 +6,8 @@ const adminProfileRoutes = require("./adminProfileRoutes");
 const adminUserManagementRoutes = require("./adminUserManagementRoutes");
 const adminHostManagement = require("./adminHostManagementRoutes");
 const adminEventRoutes = require("./adminEventRoutes");
-const adminWalletRoutes = require("./adminWalletRoutes")
+const adminWalletRoutes = require("./adminWalletRoutes");
+const adminEventCancellationRoutes = require("./admineventcancellationRoutes");
 
 
 router.use("/auth", adminAuthRoutes);
@@ -15,5 +16,6 @@ router.use( "/user-management" , adminUserManagementRoutes);
 router.use( "/host-management" ,  adminHostManagement)
 router.use("/event-management", adminEventRoutes);
 router.use("/wallet", adminWalletRoutes);
+router.use("/event/cancellation", adminEventCancellationRoutes);
 
 module.exports = router;
