@@ -221,7 +221,7 @@ const rejectEvent = async (req, res) => {
           userId: req.user.id,
           eventId: event._id,
           amount: refundAmount,
-          type: "refund",
+          type: "wallet_deduct",
           method: "admin",
           role: "admin",
           walletType: "admin",

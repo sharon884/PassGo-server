@@ -20,7 +20,6 @@ const getAllUser = async (req, res) => {
       ],
     };
 
-    // Only apply role filter if role is provided (not empty string)
     if (role && role.trim() !== "") {
       query.$and.push({ role: role.trim() });
     }

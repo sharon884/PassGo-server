@@ -200,7 +200,7 @@ const approveCancellationRequest = async (req, res) => {
         eventId: event._id,
         orderId: event._id,
         amount: adminRetained,
-        type: "retain",
+        type: "commission",
         method: "wallet",
         role: "admin",
         walletType: "admin",
