@@ -51,7 +51,10 @@ const eventSchema = new mongoose.Schema(
     time: {
       type: String,
       required: true,
-      match: [/^([01]\d|2[0-3]):([0-5]\d)$/, "Please provide a valid time in HH:MM format"],
+      match: [
+        /^([01]\d|2[0-3]):([0-5]\d)$/,
+        "Please provide a valid time in HH:MM format",
+      ],
     },
     tickets: {
       VIP: {
@@ -116,6 +119,8 @@ const eventSchema = new mongoose.Schema(
       enum: ["free", "paid_stage_with_seats", "paid_stage_without_seats"],
       required: true,
     },
+    isCancelled: { type: Boolean, default: false },
+
     layoutId: {
       type: String,
       required: function () {
