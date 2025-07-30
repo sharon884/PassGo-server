@@ -25,7 +25,10 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       enum: [
         "payment",
+        "commission",
         "refund",
+        "transfer", 
+        "ticket-sale",
         "wallet_topup",
         "wallet_deduct",
         "referral_reward",
