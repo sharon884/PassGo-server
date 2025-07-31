@@ -70,7 +70,7 @@ const updatePasswordUser = async (req, res) => {
         message: "New password cannot be the same as currentPassword",
       });
     }
-
+ console.log("hitting or not ")
     const hashedPassword = await hashPassword(newPassword);
     user.password = hashedPassword;
     await user.save();
@@ -78,10 +78,11 @@ const updatePasswordUser = async (req, res) => {
     await createNotification(req.io, {
       userId,
       role: "user",
+      roleRef : "User",
       type: "security",
       message: "Your password was updated successfully.",
       reason: "password_change",
-      iconType: "lock",
+      iconType: "success",
     });
 
     return res.status(STATUS_CODE.SUCCESS).json({
@@ -117,10 +118,11 @@ const updateProfileUser = async (req, res) => {
     await createNotification(req.io, {
       userId,
       role: "user",
+      roleRef : "User",
       type: "profile",
       message: "Your profile has been updated.",
       reason: "profile_update",
-      iconType: "user",
+      iconType: "success",
     });
 
     return res.status(STATUS_CODE.SUCCESS).json({

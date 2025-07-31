@@ -231,6 +231,7 @@ const googleSignupUser = async (req, res) => {
     await createNotification(req.io, {
       userId: newUser._id,
       role: "user",
+      roleRef: "User",
       type: "account",
       message: "Welcome to Pass-Go! Your account was created using Google.",
       reason: "signup_success",
@@ -363,6 +364,7 @@ const forgetPasswordUser = async (req, res) => {
     await createNotification(req.io, {
       userId: existUser._id,
       role: "user",
+      roleRef: "User",
       type: "security",
       message: "A password reset OTP was sent to your email.",
       reason: "password_reset_requested",
@@ -491,12 +493,23 @@ const resetPasswordUser = async (req, res) => {
     }
 
     const hashedPassword = await hashPassword(password);
+
+    const isSamePassword = await comparePassword(password, user.password);
+
+    if (isSamePassword) {
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Enter a new password",
+      });
+    }
+
     user.password = hashedPassword;
     await user.save();
 
     await createNotification(req.io, {
       userId: user._id,
       role: "user",
+      roleRef: "User",
       type: "security",
       message: "Your password was successfully updated.",
       reason: "password_reset_success",
