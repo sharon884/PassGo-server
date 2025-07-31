@@ -64,6 +64,7 @@ const toggleBlockUser = async (req, res) => {
     await createNotification(req.io, {
       userId: existUser._id,
       role: existUser.role,
+      roleRef : "User",
       type: "account_status",
       title: existUser.is_active ? "Account Unblocked" : "Account Blocked",
       message: existUser.is_active
