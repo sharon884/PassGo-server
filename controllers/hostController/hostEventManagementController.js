@@ -5,7 +5,6 @@ const {
 } = require("../../Services/notifications/notificationServices");
 
 const createDraftEvent = async (req, res) => {
-  console.log("hitting here or not")
   try {
     const hostId = req.user.id
     const {
@@ -13,7 +12,8 @@ const createDraftEvent = async (req, res) => {
       description,
       category,
       images,
-      location, // This is now the GeoJSON object { type: "Point", coordinates: [lng, lat] }
+      location,
+      locationName, // Add this line
       date,
       time,
       tickets,
@@ -28,7 +28,6 @@ const createDraftEvent = async (req, res) => {
         message: "Minimum 3 images are required",
       })
     }
-  
     // Validate eventType
     const allowedEventTypes = ["free", "paid_stage_without_seats", "paid_stage_with_seats"]
     if (!allowedEventTypes.includes(eventType)) {
@@ -53,7 +52,8 @@ const createDraftEvent = async (req, res) => {
       description,
       category,
       images,
-      location, // Pass the GeoJSON object directly
+      location,
+      locationName, // Add this line
       date,
       time,
       tickets,
