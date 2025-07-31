@@ -83,9 +83,11 @@ const createAdvanceOrder = async (req, res) => {
   }
 };
 
+
 const verifyAdvancePayment = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  let transactionCommitted = false; 
 
   try {
     const { razorpayPaymentId, razorpayOrderId, razorpaySignature, eventId } =
@@ -151,6 +153,7 @@ const verifyAdvancePayment = async (req, res) => {
     );
 
     await session.commitTransaction();
+     transactionCommitted = true;
     session.endSession();
 
     await createNotification(req.io, {
@@ -171,7 +174,7 @@ const verifyAdvancePayment = async (req, res) => {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
       type: "event_request",
-      roleRef : "Admin"
+      roleRef : "Admin",
       title: "New Event Submitted",
       message: `Host has submitted the event '${event.title}' after advance payment. Please review it.`,
       reason: "event_submission",
@@ -185,7 +188,9 @@ const verifyAdvancePayment = async (req, res) => {
       message: "Advance payment verified and event submitted.",
     });
   } catch (error) {
-    await session.abortTransaction();
+     if (!transactionCommitted) {
+      await session.abortTransaction();
+    }
     session.endSession();
 
     console.error("Advance Payment Verification Error:", error);
