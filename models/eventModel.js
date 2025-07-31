@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("mongoose")
 
 const eventSchema = new mongoose.Schema(
   {
@@ -30,31 +30,37 @@ const eventSchema = new mongoose.Schema(
       required: [true, "Event images are required"],
       validate: [arrayLimit, "Minimum 3 images are required"],
     },
+    // GeoJSON location object
     location: {
-      type: String,
-      required: true,
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+        required: true,
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true,
+      },
     },
-    coordinates: {
-      lat: { type: Number, required: true },
-      lng: { type: Number, required: true },
+    // NEW FIELD: Human-readable location name
+    locationName: {
+      type: String,
+      required: [true, "Event location name is required"],
+      trim: true,
     },
     date: {
       type: Date,
       required: true,
       validate: {
-        validator: function (value) {
-          return value > new Date();
-        },
+        validator: (value) => value > new Date(),
         message: "Event date must be in the future",
       },
     },
     time: {
       type: String,
       required: true,
-      match: [
-        /^([01]\d|2[0-3]):([0-5]\d)$/,
-        "Please provide a valid time in HH:MM format",
-      ],
+      match: [/^([01]\d|2[0-3]):([0-5]\d)$/, "Please provide a valid time in HH:MM format"],
     },
     tickets: {
       VIP: {
@@ -90,16 +96,7 @@ const eventSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [
-        "draft",
-        "pending_payment",
-        "requested",
-        "approved",
-        "rejected",
-        "active",
-        "completed",
-        "cancelled",
-      ],
+      enum: ["draft", "pending_payment", "requested", "approved", "rejected", "active", "completed", "cancelled"],
       default: "draft",
     },
     advancePaid: {
@@ -120,20 +117,27 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
     isCancelled: { type: Boolean, default: false },
-
     layoutId: {
       type: String,
       required: function () {
-        return this.eventType === "paid_stage_with_seats";
+        return this.eventType === "paid_stage_with_seats"
       },
     },
+    // Added for 'most_selling' sort
+    totalTicketsSold: {
+      type: Number,
+      default: 0,
+    },
   },
-  { timestamps: true }
-);
+  { timestamps: true },
+)
 
 function arrayLimit(val) {
-  return val.length >= 3;
+  return val.length >= 3
 }
 
-const Event = mongoose.model("Event", eventSchema);
-module.exports = Event;
+// Create a 2dsphere index for geospatial queries
+eventSchema.index({ location: "2dsphere" })
+
+const Event = mongoose.model("Event", eventSchema)
+module.exports = Event

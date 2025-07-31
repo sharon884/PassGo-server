@@ -5,16 +5,15 @@ const {
 } = require("../../Services/notifications/notificationServices");
 
 const createDraftEvent = async (req, res) => {
+  console.log("hitting here or not")
   try {
-    const hostId = req.user.id;
-
+    const hostId = req.user.id
     const {
       title,
       description,
       category,
       images,
-      location,
-      coordinates,
+      location, // This is now the GeoJSON object { type: "Point", coordinates: [lng, lat] }
       date,
       time,
       tickets,
@@ -22,48 +21,39 @@ const createDraftEvent = async (req, res) => {
       highlights,
       eventType,
       layoutId,
-    } = req.body;
-
+    } = req.body
     if (!Array.isArray(images) || images.length < 3) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Minimum 3 images are required",
-      });
+      })
     }
-
+  
     // Validate eventType
-    const allowedEventTypes = [
-      "free",
-      "paid_stage_without_seats",
-      "paid_stage_with_seats",
-    ];
+    const allowedEventTypes = ["free", "paid_stage_without_seats", "paid_stage_with_seats"]
     if (!allowedEventTypes.includes(eventType)) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Invalid event type",
-      });
+      })
     }
-
     // layoutId is required for "paid_stage_with_seats"
     if (eventType === "paid_stage_with_seats" && !layoutId) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Stage layout is required for events with seats",
-      });
+      })
     }
-
     const estimatedRevenue =
       (tickets?.VIP?.price || 0) * (tickets?.VIP?.quantity || 0) +
-      (tickets?.general?.price || 0) * (tickets?.general?.quantity || 0);
-
+      (tickets?.general?.price || 0) * (tickets?.general?.quantity || 0)
     const event = new Event({
       host: hostId,
       title,
       description,
       category,
       images,
-      location,
-      coordinates,
+      location, // Pass the GeoJSON object directly
       date,
       time,
       tickets,
@@ -74,23 +64,21 @@ const createDraftEvent = async (req, res) => {
       status: "draft",
       advancePaid: false,
       estimatedRevenue,
-    });
-
-    await event.save();
-
+    })
+    await event.save()
     return res.status(STATUS_CODE.CREATED).json({
       success: true,
       message: "Draft event created. Proceed to advance payment.",
       eventId: event._id,
-    });
+    })
   } catch (error) {
-    console.log("Create Draft Event Error:", error);
+    console.log("Create Draft Event Error:", error)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Something went wrong while creating the event",
-    });
+    })
   }
-};
+}
 
 const submitEventAfterPayment = async (req, res) => {
   try {

@@ -5,132 +5,127 @@ const Offer  = require("../../models/offerModel");
 
 const getApprovedEvents = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 6;
-    const skip = (page - 1) * limit;
+    const {
+      page = 1,
+      limit = 8,
+      eventType = "all",
+      sortBy = "latest",
+      category = "",
+      latitude, // From frontend for nearest sort
+      longitude, // From frontend for nearest sort
+    } = req.query
 
-    const { eventType, sortBy, category } = req.query;
+    const skip = (page - 1) * limit
+    const query = {}
+    const sortOptions = {}
+    const pipeline = []
 
-    const matchStage = {
-      isApproved: true,
-      advancePaid: true,
-    };
+    // Base filters for approved events
+    query.isApproved = true
+    query.status = "approved" // Assuming 'approved' is the final status for user-visible events
 
-    // Filter by event type
+    // Filter by eventType
     if (eventType && eventType !== "all") {
-      matchStage.eventType = eventType;
+      query.eventType = eventType
     }
 
-    // Filter by category (case-insensitive match)
+    // Filter by category
     if (category) {
-      matchStage.category = { $regex: new RegExp(category, "i") };
+      query.category = category
     }
 
-    const pipeline = [
-      { $match: matchStage },
-
-      // Lookup booked tickets
-      {
-        $lookup: {
-          from: "tickets",
-          localField: "_id",
-          foreignField: "eventId",
-          as: "tickets",
-        },
-      },
-
-      // Add bookingCount and fallback price
-      {
-        $addFields: {
-          bookingCount: {
-            $size: {
-              $filter: {
-                input: "$tickets",
-                as: "ticket",
-                cond: { $eq: ["$$ticket.status", "booked"] },
-              },
-            },
+    // Handle 'nearest' sort using $geoNear aggregation
+    if (sortBy === "nearest" && latitude && longitude) {
+      pipeline.push({
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [Number.parseFloat(longitude), Number.parseFloat(latitude)],
           },
-          price: {
-            $cond: [
-              { $ifNull: ["$tickets.general.price", false] },
-              "$tickets.general.price",
-              "$tickets.VIP.price",
-            ],
-          },
+          distanceField: "distance", // Adds distance in meters
+          spherical: true,
+          query: query, // Apply other filters here
         },
-      },
-
-      // Select only required fields
-      {
-        $project: {
-          title: 1,
-          description: 1,
-          images: 1,
-          category: 1,
-          eventType: 1,
-          date: 1,
-          bookingCount: 1,
-          price: 1,
-        },
-      },
-    ];
-
-    // Apply sorting
-    switch (sortBy) {
-      case "price_low":
-        pipeline.push({ $sort: { price: 1 } });
-        break;
-      case "price_high":
-        pipeline.push({ $sort: { price: -1 } });
-        break;
-      case "most_selling":
-        pipeline.push({ $sort: { bookingCount: -1 } });
-        break;
-      case "upcoming":
-        pipeline.push({ $sort: { date: 1 } });
-        break;
-      default:
-        pipeline.push({ $sort: { createdAt: -1 } });
+      })
+      // No need for sortOptions here, $geoNear sorts by distance by default
+    } else {
+      // Standard sorting for other options
+      switch (sortBy) {
+        case "latest":
+          sortOptions.createdAt = -1
+          break
+        case "upcoming":
+          sortOptions.date = 1 // Sort by date ascending for upcoming
+          query.date = { $gte: new Date() } // Only show future events for upcoming
+          break
+        case "price_low":
+          // Sort by the lower of VIP or general price, or just general if VIP isn't always present
+          sortOptions["tickets.general.price"] = 1 // Assuming general price is a good default
+          break
+        case "price_high":
+          sortOptions["tickets.general.price"] = -1
+          break
+        case "most_selling":
+          sortOptions.totalTicketsSold = -1
+          break
+        default:
+          sortOptions.createdAt = -1 // Default to latest
+      }
+      pipeline.push({ $match: query }) // Apply filters before sorting for non-geoNear
+      pipeline.push({ $sort: sortOptions })
     }
 
     // Pagination
-    pipeline.push({ $skip: skip }, { $limit: limit });
+    pipeline.push({ $skip: Number.parseInt(skip) })
+    pipeline.push({ $limit: Number.parseInt(limit) })
 
-    // Execute aggregation
-    const events = await Event.aggregate(pipeline);
-    const total = await Event.countDocuments(matchStage);
+    // Count total documents for pagination (without skip/limit)
+    const totalCountPipeline =
+      sortBy === "nearest" && latitude && longitude
+        ? [
+            {
+              $geoNear: {
+                near: { type: "Point", coordinates: [Number.parseFloat(longitude), Number.parseFloat(latitude)] },
+                distanceField: "distance",
+                spherical: true,
+                query: query,
+              },
+            },
+            { $count: "total" },
+          ]
+        : [{ $match: query }, { $count: "total" }]
+
+    const [events, totalResult] = await Promise.all([Event.aggregate(pipeline), Event.aggregate(totalCountPipeline)])
+
+    const total = totalResult.length > 0 ? totalResult[0].total : 0
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
-      message: "Filtered approved events fetched successfully",
+      message: "Approved events fetched successfully",
       events,
-      total,
-      page,
+      currentPage: Number.parseInt(page),
       totalPages: Math.ceil(total / limit),
-    });
+      totalCount: total,
+    })
   } catch (error) {
-    console.error("Error in getApprovedEvents:", error);
+    console.error("getApprovedEvents error:", error)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Error while fetching approved events",
-    });
+      message: "Server error while fetching approved events",
+    })
   }
-};
-
+}
 const getEventById = async (req, res) => {
     try {
         const { id } = req.params;
         const event = await Event.findOne({ _id: id, isApproved: true });
-
         if (!event) {
             return res.status(STATUS_CODE.NOT_FOUND).json({
                 success: false,
                 message: "Event not found or not approved"
             });
         }
-        
-        const offer = await Offer.findOne({ eventId : id, isActive : true  });
+        const offer = await Offer.findOne({ eventId : id, isActive : true });
         console.log(offer)
         return res.status(STATUS_CODE.SUCCESS).json({
             success: true,
@@ -146,37 +141,30 @@ const getEventById = async (req, res) => {
         });
     }
 };
-
 // search Events 
 const searchEvents = async ( req, res ) => {
     try {
         const { query = "", page = 1, limit = 6 } = req.query;
-
         const pageNum = parseInt(page, 10);
         const limitNum = parseInt(limit, 10);
-
         const searchFilter = {
             isApproved : true,
             $or : [
                  {title : {$regex : query, $options : "i"}},
                  { description : {$regex : query, $options : "i"}},
                  { category: {$regex : query, $options : "i"}},
-                 { location: {$regex : query, $options : "i"}},
+                 { location: {$regex : query, $options : "i"}}, // <-- PROBLEM HERE
                  { "businessInfo.name" : {$regex : query, $options : "i"}},
                  { "businessInfo.organization_name" : {$regex : query, $options : "i"}},
-
             ],
         };
-
         const totalResults = await Event.countDocuments(searchFilter);
-
         const totalPages = Math.ceil(totalResults / limitNum );
-
         const events = await Event.find(searchFilter).sort({ date : 1}).skip((pageNum -1 ) * limitNum).limit(limitNum)
-         
+
         res.status(STATUS_CODE.SUCCESS).json({
             success : true,
-            events, 
+            events,
             totalResults,
             totalPages,
             page : pageNum,
@@ -188,8 +176,8 @@ const searchEvents = async ( req, res ) => {
             message : "Internal server error"
         })
     }
-
 };
+
 
 module.exports = {
      getApprovedEvents,
