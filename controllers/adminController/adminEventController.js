@@ -120,7 +120,7 @@ const approveEvent = async (req, res) => {
       link: `/host/events/${event._id}`,
     });
 
-    const allUsers = await User.find({ role: "user" });
+    const allUsers = await User.find({ role: { $in: ["user", "host"] } });
 
     for (const user of allUsers) {
       await createNotification(io, {
