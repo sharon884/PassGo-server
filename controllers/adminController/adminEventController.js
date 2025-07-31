@@ -111,6 +111,7 @@ const approveEvent = async (req, res) => {
     await createNotification(req.io, {
       userId: event.host,
       role: "host",
+      roleRef : "User",
       type: "event_status",
       title: "Event Approved",
       message: `Your event '${event.title}' has been approved by the admin.`,
@@ -125,6 +126,7 @@ const approveEvent = async (req, res) => {
       await createNotification(io, {
         userId: user._id,
         role: "user",
+        roleRef : "User",
         type: "new_event",
         title: "New Event Available",
         message: `A new event '${event.title}' is now live! Check it out.`,
@@ -258,6 +260,7 @@ const rejectEvent = async (req, res) => {
     await createNotification(req.io, {
       userId: event.host,
       role: "host",
+      roleRef : "User",
       type: "event_status",
       title: "Event Rejected",
       message: `Your event '${event.title}' has been rejected by the admin.`,
