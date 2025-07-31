@@ -447,10 +447,11 @@ const bookFreeTicket = async (req, res) => {
     await createNotification(req.io, {
       userId,
       role: "user",
+      roleRef : "User",
       type: "ticket",
       message: `Free ticket booked for event "${event.title}" in ${category} category.`,
       reason: "free_ticket_booking",
-      iconType: "ticket",
+      iconType: "success",
     });
 
     return res.status(201).json({ message: "Ticket booked", ticket });
