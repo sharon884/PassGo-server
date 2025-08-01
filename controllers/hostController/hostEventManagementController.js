@@ -165,82 +165,97 @@ const getHostEvents = async (req, res) => {
 
 //Get Event Details by Id For shwoing in the Host Event Editing page
 const getEventDetails = async (req, res) => {
-  const { eventId } = req.params;
-  const hostId = req.user.id;
+  const { eventId } = req.params
+  const hostId = req.user.id
   try {
-    const event = await Event.findById(eventId);
+    // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
+    const event = await Event.findById(eventId).select(
+      "_id title description category images location locationName date time eventType tickets businessInfo host status createdAt updatedAt",
+    )
+
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Event not found",
-      });
+      })
     }
 
     if (event.host.toString() !== hostId.toString()) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Requested Event is not matching with your credentils",
-      });
+        message: "Requested Event is not matching with your credentials",
+      })
     }
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Fetch Event successfully",
       data: { event },
-    });
+    })
   } catch (error) {
-    console.error("Error fetching event:", error.message);
+    console.error("Error fetching event:", error.message)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Internal server error",
-    });
+    })
   }
-};
+}
 
 const updateEvent = async (req, res) => {
-  const { eventId } = req.params;
-  const hostId = req.user.id;
-  const updatedData = req.body;
+  const { eventId } = req.params
+  const hostId = req.user.id
+  const updatedData = req.body
+
   try {
-    const event = await Event.findById(eventId);
+    const event = await Event.findById(eventId)
+
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Event not found",
-      });
+      })
     }
 
     if (event.host.toString() !== hostId.toString()) {
       return res.status(STATUS_CODE.FORBIDDEN).json({
         success: false,
         message: "You are not authorized to update this event",
-      });
+      })
     }
 
     if (event.advancePaid !== true) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Advance payment not completed ",
-      });
+        message: "Advance payment not completed",
+      })
     }
 
-    Object.assign(event, updatedData);
-    await event.save();
+    // 🔥 FIXED: Handle GeoJSON location data properly
+    if (updatedData.location && updatedData.locationName) {
+      // If both GeoJSON location and locationName are provided, use them
+      event.location = updatedData.location
+      event.locationName = updatedData.locationName
+      delete updatedData.location
+      delete updatedData.locationName
+    }
+
+    // Update other fields
+    Object.assign(event, updatedData)
+    await event.save()
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Event updated successfully",
       data: { event },
-    });
+    })
   } catch (error) {
-    console.log("Error updating event", error);
+    console.log("Error updating event", error)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Internal server error",
-    });
+    })
   }
-};
-
+}
 module.exports = {
   createDraftEvent,
   submitEventAfterPayment,
