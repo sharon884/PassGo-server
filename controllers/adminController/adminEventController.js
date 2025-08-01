@@ -10,6 +10,7 @@ const {
 } = require("../../Services/notifications/notificationServices");
 
 
+
 const getEventsWithFilters = async (req, res) => {
   try {
     const {
@@ -22,7 +23,6 @@ const getEventsWithFilters = async (req, res) => {
       order = "desc",
       advancePaid,
     } = req.query
-
     const skip = (page - 1) * limit
     const query = {}
 
@@ -30,15 +30,18 @@ const getEventsWithFilters = async (req, res) => {
     if (status) {
       query.status = status
     }
+
     if (advancePaid !== undefined) {
       query.advancePaid = advancePaid === "true"
     }
+
     if (isApproved !== undefined) {
       query.isApproved = isApproved === "true"
     }
 
     if (search) {
-      query.$or = [{ title: { $regex: search, $options: "i" } }]
+      // 🔥 FIXED: Updated search to include locationName field for GeoJSON support
+      query.$or = [{ title: { $regex: search, $options: "i" } }, { locationName: { $regex: search, $options: "i" } }]
     }
 
     const sortOptions = {
@@ -48,6 +51,10 @@ const getEventsWithFilters = async (req, res) => {
     const [events, total] = await Promise.all([
       Event.find(query)
         .populate("host", "name email")
+        // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
+        .select(
+          "title description category images location locationName date time tickets businessInfo eventType status isApproved advancePaid host createdAt updatedAt",
+        )
         .sort(sortOptions)
         .skip(Number.parseInt(skip))
         .limit(Number.parseInt(limit)),
@@ -73,6 +80,7 @@ const getEventsWithFilters = async (req, res) => {
     })
   }
 }
+
 //approve the event by admin
 const approveEvent = async (req, res) => {
   try {
