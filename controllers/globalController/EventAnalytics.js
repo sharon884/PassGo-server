@@ -5,128 +5,119 @@ const PaidTicket = require("../../models/paidTicketModel");
 const Offer = require("../../models/offerModel");
 const STATUS_CODE = require("../../constants/statuscodes");
 
+
 const getEventBookingSummary = async (req, res) => {
   try {
-    const { eventId } = req.params;
-
+    const { eventId } = req.params
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Invalid eventId"
-      });
+        message: "Invalid eventId",
+      })
     }
 
-    const event = await Event.findById(eventId);
+    // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
+    const event = await Event.findById(eventId).select(
+      "_id title eventType date category location locationName images description status tickets",
+    )
+
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
-        message: "Event not found"
-      });
+        message: "Event not found",
+      })
     }
 
-    let ticketsSold = 0;
-    let totalRevenue = 0;
-    let dailySales = [];
-     const ticketStats = {};
+    let ticketsSold = 0
+    let totalRevenue = 0
+    let dailySales = []
 
+    const ticketStats = {}
 
-      for (const category in event.tickets) {
-  if (Object.prototype.hasOwnProperty.call(event.tickets, category)) {
-    const ticket = event.tickets[category];
-    const quantity = ticket.quantity || 0;
-    const sold = 0;
-    ticketStats[category] = {
-      total: quantity,
-      sold,
-      remaining: quantity - sold,
-    };
-  }
-}
+    for (const category in event.tickets) {
+      if (Object.prototype.hasOwnProperty.call(event.tickets, category)) {
+        const ticket = event.tickets[category]
+        const quantity = ticket.quantity || 0
+        const sold = 0
+        ticketStats[category] = {
+          total: quantity,
+          sold,
+          remaining: quantity - sold,
+        }
+      }
+    }
 
-
-    const eventType = event.eventType.trim();
-
-
+    const eventType = event.eventType.trim()
     if (eventType === "free") {
       const tickets = await FreeTicket.find({
         eventId,
-        status: { $ne: "cancelled" }
-      });
+        status: { $ne: "cancelled" },
+      })
+      ticketsSold = tickets.length
 
-      ticketsSold = tickets.length;
-
-        for (const ticket of tickets) {
+      for (const ticket of tickets) {
         if (ticketStats[ticket.category]) {
-          ticketStats[ticket.category].sold += 1;
+          ticketStats[ticket.category].sold += 1
         }
       }
 
       for (const category in ticketStats) {
-        ticketStats[category].remaining =
-          ticketStats[category].total - ticketStats[category].sold;
+        ticketStats[category].remaining = ticketStats[category].total - ticketStats[category].sold
       }
-
 
       dailySales = await FreeTicket.aggregate([
         {
           $match: {
             eventId: new mongoose.Types.ObjectId(eventId),
-            status: { $ne: "cancelled" }
-          }
+            status: { $ne: "cancelled" },
+          },
         },
         {
           $group: {
             _id: {
-              $dateToString: { format: "%Y-%m-%d", date: "$bookedAt" }
+              $dateToString: { format: "%Y-%m-%d", date: "$bookedAt" },
             },
-            count: { $sum: 1 }
-          }
+            count: { $sum: 1 },
+          },
         },
-        { $sort: { _id: 1 } }
-      ]);
+        { $sort: { _id: 1 } },
+      ])
     } else {
       const paidTickets = await PaidTicket.find({
         eventId,
-        status: "paid"
-      });
+        status: "paid",
+      })
 
       for (const ticket of paidTickets) {
         console.log(ticket.seats)
         if (eventType === "paid_stage_with_seats") {
-          const seatCount = ticket.seats.reduce(
-            (sum, seatBlock) => sum + (seatBlock.seatNumber?.length || 0),
-            0
-          );
+          const seatCount = ticket.seats.reduce((sum, seatBlock) => sum + (seatBlock.seatNumber?.length || 0), 0)
+          ticketsSold += seatCount
 
-          ticketsSold += seatCount;
-          
           if (ticketStats[ticket.category]) {
-            ticketStats[ticket.category].sold += seatCount;
+            ticketStats[ticket.category].sold += seatCount
           }
-
         } else {
-          ticketsSold += ticket.quantity;
-             if (ticketStats[ticket.category]) {
-            ticketStats[ticket.category].sold += ticket.quantity;
+          ticketsSold += ticket.quantity
+
+          if (ticketStats[ticket.category]) {
+            ticketStats[ticket.category].sold += ticket.quantity
           }
         }
-
-        totalRevenue += ticket.amount;
+        totalRevenue += ticket.amount
       }
 
-        for (const category in ticketStats) {
-        ticketStats[category].remaining =
-          ticketStats[category].total - ticketStats[category].sold;
-      } 
+      for (const category in ticketStats) {
+        ticketStats[category].remaining = ticketStats[category].total - ticketStats[category].sold
+      }
 
-
-      if (eventType ==="paid_stage_with_seats") {
+      if (eventType === "paid_stage_with_seats") {
         dailySales = await PaidTicket.aggregate([
           {
             $match: {
               eventId: new mongoose.Types.ObjectId(eventId),
-              status: "paid"
-            }
+              status: "paid",
+            },
           },
           {
             $project: {
@@ -136,45 +127,46 @@ const getEventBookingSummary = async (req, res) => {
                   input: "$seats",
                   initialValue: 0,
                   in: {
-                    $add: ["$$value", { $size: "$$this.seatNumber" }]
-                  }
-                }
-              }
-            }
+                    $add: ["$$value", { $size: "$$this.seatNumber" }],
+                  },
+                },
+              },
+            },
           },
           {
             $group: {
               _id: {
-                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
               },
-              count: { $sum: "$count" }
-            }
+              count: { $sum: "$count" },
+            },
           },
-          { $sort: { _id: 1 } }
-        ]);
+          { $sort: { _id: 1 } },
+        ])
       } else {
         // paid_without_seats
         dailySales = await PaidTicket.aggregate([
           {
             $match: {
               eventId: new mongoose.Types.ObjectId(eventId),
-              status: "paid"
-            }
+              status: "paid",
+            },
           },
           {
             $group: {
               _id: {
-                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" }
+                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
               },
-              count: { $sum: "$quantity" }
-            }
+              count: { $sum: "$quantity" },
+            },
           },
-          { $sort: { _id: 1 } }
-        ]);
+          { $sort: { _id: 1 } },
+        ])
       }
     }
+
     console.log(dailySales)
-    const offer = await Offer.findOne({ eventId, isActive : true });
+    const offer = await Offer.findOne({ eventId, isActive: true })
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -185,7 +177,8 @@ const getEventBookingSummary = async (req, res) => {
           type: event.eventType,
           date: event.date,
           category: event.category,
-          location: event.location,
+          location: event.location, // Keep GeoJSON for potential map usage
+          locationName: event.locationName, // 🔥 FIXED: Add locationName for display
           images: event.images,
           description: event.description,
           status: event.status,
@@ -200,19 +193,19 @@ const getEventBookingSummary = async (req, res) => {
               discountType: offer.discountType,
               value: offer.value,
               expiryDate: offer.expiryDate,
-              createdAt: offer.createdAt
+              createdAt: offer.createdAt,
             }
-          : null
-      }
-    });
+          : null,
+      },
+    })
   } catch (error) {
-    console.error("Error fetching event summary:", error);
+    console.error("Error fetching event summary:", error)
     res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: "Server error while fetching event summary"
-    });
+      message: "Server error while fetching event summary",
+    })
   }
-};
+}
 
 module.exports = {
   getEventBookingSummary
