@@ -7,17 +7,26 @@ const validateEventCreation = [
   body("category")
     .notEmpty().withMessage("Event category is required")
     .isIn(["Music", "Art", "Fashion", "Motosports"]).withMessage("Invalid event category"),
-
-  body("location").notEmpty().withMessage("Event location is required"),
-  // Coordinates
-body("coordinates.lat")
-  .notEmpty().withMessage("Latitude is required")
-  .isFloat({ min: -90, max: 90 }).withMessage("Latitude must be between -90 and 90"),
-
-body("coordinates.lng")
-  .notEmpty().withMessage("Longitude is required")
-  .isFloat({ min: -180, max: 180 }).withMessage("Longitude must be between -180 and 180"),
-
+body("location").notEmpty().withMessage("Event location is required (GeoJSON object)"),
+  body("location.type").equals("Point").withMessage("Location type must be 'Point'"),
+  body("location.coordinates")
+    .isArray({ min: 2, max: 2 })
+    .withMessage("Coordinates must be an array of [longitude, latitude]"),
+  body("location.coordinates[0]") // Longitude
+    .isFloat({ min: -180, max: 180 })
+    .withMessage("Longitude must be between -180 and 180"),
+  body("location.coordinates[1]") // Latitude
+    .isFloat({ min: -90, max: 90 })
+    .withMessage("Latitude must be between -90 and 90"),
+  // NEW VALIDATION: for locationName
+  body("locationName")
+    .notEmpty()
+    .withMessage("Location name is required"),
+  body("locationName").isString().withMessage("Location name must be a string"),
+  body("locationName")
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage("Location name must be at least 3 characters long"),
   body("date")
     .notEmpty().withMessage("Event date is required")
     .isISO8601().withMessage("Invalid date format")

@@ -58,6 +58,7 @@ const cancelFreeTicket = async (req, res) => {
 await createNotification(req.io, {
   userId,
   role: "user",
+  roleRef : "User",
   type: "cancel",
   message: `Your free ticket for '${event.title}' has been successfully cancelled.`,
   reason: "free_ticket_cancelled",

@@ -9,6 +9,8 @@ const {
   createNotification,
 } = require("../../Services/notifications/notificationServices");
 
+
+
 const getEventsWithFilters = async (req, res) => {
   try {
     const {
@@ -20,44 +22,44 @@ const getEventsWithFilters = async (req, res) => {
       sortBy = "createdAt",
       order = "desc",
       advancePaid,
-    } = req.query;
-
-    const skip = (page - 1) * limit;
-
-    const query = {};
+    } = req.query
+    const skip = (page - 1) * limit
+    const query = {}
 
     // Filter by event status
     if (status) {
-      query.status = status;
+      query.status = status
     }
 
     if (advancePaid !== undefined) {
-      query.advancePaid = advancePaid === "true";
+      query.advancePaid = advancePaid === "true"
     }
 
     if (isApproved !== undefined) {
-      query.isApproved = isApproved === "true";
+      query.isApproved = isApproved === "true"
     }
 
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { location: { $regex: search, $options: "i" } },
-      ];
+      // 🔥 FIXED: Updated search to include locationName field for GeoJSON support
+      query.$or = [{ title: { $regex: search, $options: "i" } }, { locationName: { $regex: search, $options: "i" } }]
     }
 
     const sortOptions = {
       [sortBy]: order === "asc" ? 1 : -1,
-    };
+    }
 
     const [events, total] = await Promise.all([
       Event.find(query)
         .populate("host", "name email")
+        // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
+        .select(
+          "title description category images location locationName date time tickets businessInfo eventType status isApproved advancePaid host createdAt updatedAt",
+        )
         .sort(sortOptions)
-        .skip(parseInt(skip))
-        .limit(parseInt(limit)),
+        .skip(Number.parseInt(skip))
+        .limit(Number.parseInt(limit)),
       Event.countDocuments(query),
-    ]);
+    ])
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
@@ -65,19 +67,19 @@ const getEventsWithFilters = async (req, res) => {
       events,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: Number.parseInt(page),
+        limit: Number.parseInt(limit),
         totalPages: Math.ceil(total / limit),
       },
-    });
+    })
   } catch (error) {
-    console.error("getEventsWithFilters error:", error);
+    console.error("getEventsWithFilters error:", error)
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Server error while fetching events",
-    });
+    })
   }
-};
+}
 
 //approve the event by admin
 const approveEvent = async (req, res) => {
@@ -123,7 +125,7 @@ const approveEvent = async (req, res) => {
     const allUsers = await User.find({ role: { $in: ["user", "host"] } });
 
     for (const user of allUsers) {
-      await createNotification(io, {
+      await createNotification(req.io, {
         userId: user._id,
         role: "user",
         roleRef : "User",
