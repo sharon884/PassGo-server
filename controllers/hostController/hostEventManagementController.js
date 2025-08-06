@@ -6,14 +6,15 @@ const {
 
 const createDraftEvent = async (req, res) => {
   try {
-    const hostId = req.user.id
+    const hostId = req.user.id;
+
     const {
       title,
       description,
       category,
       images,
       location,
-      locationName, // Add this line
+      coordinates,
       date,
       time,
       tickets,
@@ -21,31 +22,40 @@ const createDraftEvent = async (req, res) => {
       highlights,
       eventType,
       layoutId,
-    } = req.body
+    } = req.body;
+
     if (!Array.isArray(images) || images.length < 3) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Minimum 3 images are required",
-      })
+      });
     }
+
     // Validate eventType
-    const allowedEventTypes = ["free", "paid_stage_without_seats", "paid_stage_with_seats"]
+    const allowedEventTypes = [
+      "free",
+      "paid_stage_without_seats",
+      "paid_stage_with_seats",
+    ];
     if (!allowedEventTypes.includes(eventType)) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Invalid event type",
-      })
+      });
     }
+
     // layoutId is required for "paid_stage_with_seats"
     if (eventType === "paid_stage_with_seats" && !layoutId) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
         message: "Stage layout is required for events with seats",
-      })
+      });
     }
+
     const estimatedRevenue =
       (tickets?.VIP?.price || 0) * (tickets?.VIP?.quantity || 0) +
-      (tickets?.general?.price || 0) * (tickets?.general?.quantity || 0)
+      (tickets?.general?.price || 0) * (tickets?.general?.quantity || 0);
+
     const event = new Event({
       host: hostId,
       title,
@@ -53,7 +63,7 @@ const createDraftEvent = async (req, res) => {
       category,
       images,
       location,
-      locationName, // Add this line
+      coordinates,
       date,
       time,
       tickets,
@@ -64,21 +74,23 @@ const createDraftEvent = async (req, res) => {
       status: "draft",
       advancePaid: false,
       estimatedRevenue,
-    })
-    await event.save()
+    });
+
+    await event.save();
+
     return res.status(STATUS_CODE.CREATED).json({
       success: true,
       message: "Draft event created. Proceed to advance payment.",
       eventId: event._id,
-    })
+    });
   } catch (error) {
-    console.log("Create Draft Event Error:", error)
+    console.log("Create Draft Event Error:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Something went wrong while creating the event",
-    })
+    });
   }
-}
+};
 
 const submitEventAfterPayment = async (req, res) => {
   try {
@@ -165,97 +177,82 @@ const getHostEvents = async (req, res) => {
 
 //Get Event Details by Id For shwoing in the Host Event Editing page
 const getEventDetails = async (req, res) => {
-  const { eventId } = req.params
-  const hostId = req.user.id
+  const { eventId } = req.params;
+  const hostId = req.user.id;
   try {
-    // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
-    const event = await Event.findById(eventId).select(
-      "_id title description category images location locationName date time eventType tickets businessInfo host status createdAt updatedAt",
-    )
-
+    const event = await Event.findById(eventId);
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Event not found",
-      })
+      });
     }
 
     if (event.host.toString() !== hostId.toString()) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Requested Event is not matching with your credentials",
-      })
+        message: "Requested Event is not matching with your credentils",
+      });
     }
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Fetch Event successfully",
       data: { event },
-    })
+    });
   } catch (error) {
-    console.error("Error fetching event:", error.message)
+    console.error("Error fetching event:", error.message);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Internal server error",
-    })
+    });
   }
-}
+};
 
 const updateEvent = async (req, res) => {
-  const { eventId } = req.params
-  const hostId = req.user.id
-  const updatedData = req.body
-
+  const { eventId } = req.params;
+  const hostId = req.user.id;
+  const updatedData = req.body;
   try {
-    const event = await Event.findById(eventId)
-
+    const event = await Event.findById(eventId);
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
         success: false,
         message: "Event not found",
-      })
+      });
     }
 
     if (event.host.toString() !== hostId.toString()) {
       return res.status(STATUS_CODE.FORBIDDEN).json({
         success: false,
         message: "You are not authorized to update this event",
-      })
+      });
     }
 
     if (event.advancePaid !== true) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
-        message: "Advance payment not completed",
-      })
+        message: "Advance payment not completed ",
+      });
     }
 
-    // 🔥 FIXED: Handle GeoJSON location data properly
-    if (updatedData.location && updatedData.locationName) {
-      // If both GeoJSON location and locationName are provided, use them
-      event.location = updatedData.location
-      event.locationName = updatedData.locationName
-      delete updatedData.location
-      delete updatedData.locationName
-    }
-
-    // Update other fields
-    Object.assign(event, updatedData)
-    await event.save()
+    Object.assign(event, updatedData);
+    await event.save();
 
     return res.status(STATUS_CODE.SUCCESS).json({
       success: true,
       message: "Event updated successfully",
       data: { event },
-    })
+    });
   } catch (error) {
-    console.log("Error updating event", error)
+    console.log("Error updating event", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Internal server error",
-    })
+    });
   }
-}
+};
+
 module.exports = {
   createDraftEvent,
   submitEventAfterPayment,
