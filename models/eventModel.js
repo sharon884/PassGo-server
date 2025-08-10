@@ -39,11 +39,11 @@ const eventSchema = new mongoose.Schema(
         required: true,
       },
       coordinates: {
-        type: [Number], // [longitude, latitude]
+        type: [Number], 
         required: true,
       },
     },
-    // NEW FIELD: Human-readable location name
+   
     locationName: {
       type: String,
       required: [true, "Event location name is required"],
@@ -123,7 +123,7 @@ const eventSchema = new mongoose.Schema(
         return this.eventType === "paid_stage_with_seats"
       },
     },
-    // Added for 'most_selling' sort
+  
     totalTicketsSold: {
       type: Number,
       default: 0,
@@ -136,7 +136,6 @@ function arrayLimit(val) {
   return val.length >= 3
 }
 
-// Create a 2dsphere index for geospatial queries
 eventSchema.index({ location: "2dsphere" })
 
 const Event = mongoose.model("Event", eventSchema)
