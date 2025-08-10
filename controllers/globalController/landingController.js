@@ -4,22 +4,18 @@ const STATUS_CODE = require("../../constants/statuscodes");
 const getLandingRunningEvents = async (req, res) => {
   try {
     const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
 
-    const startOfWeek = new Date(today);
-    const dayOfWeek = today.getDay(); // 0 = Sunday
-    startOfWeek.setDate(today.getDate() - dayOfWeek);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    const startOfRange = new Date(today);
+    startOfRange.setDate(startOfRange.getDate() - 6); // Last 7 days
+    startOfRange.setHours(0, 0, 0, 0);
 
     const events = await Event.find({
       isApproved: true,
       advancePaid: true,
       date: {
-        $gte: startOfWeek,
-        $lte: endOfWeek,
+        $gte: startOfRange,
+        $lte: today,
       },
     })
       .sort({ date: 1 })
@@ -28,7 +24,7 @@ const getLandingRunningEvents = async (req, res) => {
 
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
-      message: "Landing page events for this week (Sunday–Saturday) fetched successfully",
+      message: "Landing page events for the last 7 days fetched successfully",
       events,
     });
   } catch (error) {

@@ -5,6 +5,7 @@ const {
 } = require("../../Services/notifications/notificationServices");
 
 const createDraftEvent = async (req, res) => {
+  console.log("hitting or not ");
   try {
     const hostId = req.user.id;
 
@@ -14,6 +15,7 @@ const createDraftEvent = async (req, res) => {
       category,
       images,
       location,
+      locationName,
       coordinates,
       date,
       time,
@@ -23,6 +25,8 @@ const createDraftEvent = async (req, res) => {
       eventType,
       layoutId,
     } = req.body;
+    console.log(locationName
+)
 
     if (!Array.isArray(images) || images.length < 3) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
@@ -63,6 +67,7 @@ const createDraftEvent = async (req, res) => {
       category,
       images,
       location,
+      locationName,
       coordinates,
       date,
       time,
