@@ -269,7 +269,6 @@ const googleLoginUser = async (req, res) => {
         message: "Token is missing",
       });
     }
-    console.log(token);
 
     const googleData = await verifyGoogleToken(token);
     if (!googleData.email_verified) {
@@ -279,11 +278,32 @@ const googleLoginUser = async (req, res) => {
       });
     }
 
-    const existUser = await User.findOne({ email: googleData.email });
+    let existUser = await User.findOne({ email: googleData.email });
+
     if (!existUser) {
-      return res.status(STATUS_CODE.NOT_FOUND).json({
-        success: false,
-        message: "User not found. Please signup first.",
+      const referralCodeForUser = generateReferralCode();
+
+      existUser = await User.create({
+        name: googleData.name,
+        email: googleData.email,
+        profile_image: googleData.profile_image,
+        googleId: googleData.googleId,
+        is_active: true,
+        isVerified: true,
+        isGoogleAccount: true,
+        referralCode: referralCodeForUser,
+        role: "user",
+      });
+
+      await createNotification(req.io, {
+        userId: existUser._id,
+        role: "user",
+        roleRef: "User",
+        type: "account",
+        message:
+          "Welcome to Pass-Go! Your account was created using Google Login.",
+        reason: "signup_success",
+        iconType: "success",
       });
     }
 
@@ -316,7 +336,10 @@ const googleLoginUser = async (req, res) => {
 
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
-      message: "Google Login successfull",
+      message:
+        existUser.createdAt === existUser.updatedAt
+          ? "Google Signup successful via login"
+          : "Google Login successful",
       user: {
         _id: existUser._id,
         name: existUser.name,
@@ -327,7 +350,7 @@ const googleLoginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log("Google Login eroor:", error);
+    console.log("Google Login error:", error);
     res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Google Login failed",
