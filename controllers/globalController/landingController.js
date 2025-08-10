@@ -3,28 +3,17 @@ const STATUS_CODE = require("../../constants/statuscodes");
 
 const getLandingRunningEvents = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-
-    const startOfRange = new Date(today);
-    startOfRange.setDate(startOfRange.getDate() - 6); // Last 7 days
-    startOfRange.setHours(0, 0, 0, 0);
-
-    const events = await Event.find({
+   
+   const events = await Event.find({
       isApproved: true,
-      advancePaid: true,
-      date: {
-        $gte: startOfRange,
-        $lte: today,
-      },
+      advancePaid: true,    
     })
       .sort({ date: 1 })
       .limit(6)
       .select("title images category date");
-
     res.status(STATUS_CODE.SUCCESS).json({
       success: true,
-      message: "Landing page events for the last 7 days fetched successfully",
+      message: "Landing page current running events fetched successfully",
       events,
     });
   } catch (error) {
