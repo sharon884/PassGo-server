@@ -15,6 +15,8 @@ const getApprovedEvents = async (req, res) => {
       longitude, // From frontend for nearest sort
     } = req.query
 
+    console.log(req.query.category)
+
     const skip = (page - 1) * limit
     const query = {}
     const sortOptions = {}
@@ -31,7 +33,7 @@ const getApprovedEvents = async (req, res) => {
 
     // Filter by category
     if (category) {
-      query.category = category
+       query.category = { $regex: `^${category}$`, $options: "i" }
     }
 
     // Handle 'nearest' sort using $geoNear aggregation
