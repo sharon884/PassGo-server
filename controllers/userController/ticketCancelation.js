@@ -89,6 +89,9 @@ await createNotification(req.io, {
 const cancelPaidTickets = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+
+   let transactionCommitted = false; 
+
   try {
     const userId = req.user.id;
     let { ticketIds } = req.body;
@@ -131,7 +134,7 @@ const cancelPaidTickets = async (req, res) => {
       // User wallet handling
       let wallet = await Wallet.findOne({ user: userId }).session(session);
       if (!wallet) {
-        const walletResult = await Wallet.create([{ user: userId, balance: 0 }], { session });
+        const walletResult = await Wallet.create([{ user: userId, balance: 0, walletType : "user" }], { session });
         wallet = walletResult[0];
       }
 
@@ -217,6 +220,7 @@ const cancelPaidTickets = async (req, res) => {
     }
 
     await session.commitTransaction();
+    transactionCommitted = true;
     session.endSession();
 
 const notificationPromises = updatedTickets.flatMap(({ ticketId, refundAmount }) => [
@@ -257,7 +261,9 @@ await Promise.all(notificationPromises);
       data: updatedTickets,
     });
   } catch (error) {
-    await session.abortTransaction();
+    if (!transactionCommitted) {
+      await session.abortTransaction();
+    }
     session.endSession();
     console.error("Error cancelling tickets:", error);
     return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
