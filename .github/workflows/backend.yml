@@ -37,7 +37,6 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:${{ github.sha }}
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
-
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -45,10 +44,10 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
-            docker stop passgo-backend || true
-            docker rm passgo-backend || true
-            docker run -d --name passgo-backend -p 5000:5000 \
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
+            sudo docker stop passgo-backend || true
+            sudo docker rm passgo-backend || true
+            sudo docker run -d --name passgo-backend -p 5000:5000 \
               -e MONGO_URI=${{ secrets.MONGO_URI }} \
               -e PORT=${{ secrets.PORT }} \
               -e PASSGO_MAIL=${{ secrets.PASSGO_MAIL }} \
