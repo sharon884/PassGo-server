@@ -9,44 +9,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # 3. Install dependencies
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      # 4. Docker login to Docker Hub
       - name: Docker login
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. Build Docker image
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/passgo-backend:latest .
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:${{ github.sha }} .
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:${{ github.sha }} ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
 
-      # 6. Push Docker image to Docker Hub
-      - name: Push Docker image to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/passgo-backend:latest
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
 
-      # 7. Deploy on EC2 via SSH
-      - name: SSH into EC2 and deploy
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull ${{ secrets.DOCKER_USERNAME }}/passgo-backend:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
             docker stop passgo-backend || true
             docker rm passgo-backend || true
-            docker run -d --name passgo-backend -p 5000:5000 --env-file /home/${{ secrets.EC2_USER }}/.env ${{ secrets.DOCKER_USERNAME }}/passgo-backend:latest
+            docker run -d --name passgo-backend -p 5000:5000 \
+              -e MONGO_URI=${{ secrets.MONGO_URI }} \
+              -e PORT=${{ secrets.PORT }} \
+              -e PASSGO_MAIL=${{ secrets.PASSGO_MAIL }} \
+              -e PASSGO_MAIL_PASSWORD=${{ secrets.PASSGO_MAIL_PASSWORD }} \
+              -e ACCESS_TOKEN_SECRET=${{ secrets.ACCESS_TOKEN_SECRET }} \
+              -e REFRESH_TOKEN_SECRET=${{ secrets.REFRESH_TOKEN_SECRET }} \
+              -e FRONTEND_URL=${{ secrets.FRONTEND_URL }} \
+              -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }} \
+              -e RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }} \
+              -e REDIS_URL=${{ secrets.REDIS_URL }} \
+              -e REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} \
+              -e REDIS_TOKEN=${{ secrets.REDIS_TOKEN }} \
+              -e OCR_SPACE_API_KEY=${{ secrets.OCR_SPACE_API_KEY }} \
+              -e CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }} \
+              -e CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }} \
+              -e CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }} \
+              -e SUPER_ADMIN_ID=${{ secrets.SUPER_ADMIN_ID }} \
+              ${{ secrets.DOCKERHUB_USERNAME }}/passgo-backend:latest
