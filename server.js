@@ -53,7 +53,7 @@ app.get("/", (req, res) => {
   res.send("PASS-GO is running !");
 });
 
-console.log("adedd a console.log for checking ");
+console.log("adedd a console.log for checkingddd");
 app.use("/api/user", userRoutes);
 app.use("/api/host", hostRoutes);
 app.use("/api/admin", adminRoutes);
