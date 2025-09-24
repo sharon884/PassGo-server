@@ -56,17 +56,6 @@ app.get("/", (req, res) => {
   res.send("PASS-GO is running !");
 });
 
-(async () => {
-  try {
-    console.log("Redis URL:", JSON.stringify(process.env.REDIS_URL));
-    console.log("Redis Token:", JSON.stringify(process.env.REDIS_TOKEN.slice(0, 10)) + "...");
-
-    const pong = await redis.ping();
-    console.log("Redis connected:", pong);
-  } catch (err) {
-    console.error("Redis init failed:", err);
-  }
-})();
 
 
 console.log("adedd a console.log for checkingddd");
