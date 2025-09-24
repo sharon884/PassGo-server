@@ -7,6 +7,7 @@ const sendOTP = async (mobile) => {
     const rediskey = `otp:${mobile}`;
 
     await redis.set(rediskey, hashedOtp , {ex : 180});
+    console.log(rediskey+"hiaiafa")
     return otp;
 };
 

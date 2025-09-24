@@ -8,7 +8,7 @@ const {
 const sendOtpForHost = async (req, res) => {
   try {
     const userId = req.user.id;
-
+    
     const user = await User.findById(userId);
     if (!user) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
@@ -16,6 +16,7 @@ const sendOtpForHost = async (req, res) => {
         message: "User not found",
       });
     }
+    console.log(userId);
 
     const { name, mobile, panNumber, panImage } = req.body;
 
@@ -28,6 +29,7 @@ const sendOtpForHost = async (req, res) => {
 
     user.panImage = panImage;
     await user.save();
+    console.log(mobile);
     const otp = await sendOTP(mobile);
     console.log("OTP :", otp);
     return res.status(STATUS_CODE.SUCCESS).json({

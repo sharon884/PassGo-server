@@ -44,7 +44,7 @@ const verifyOTP = async (req, res) => {
   try {
     const { email, userId, otp, role } = req.body;
     console.log(email);
-
+ console.log("hai")
     if (!email || !userId || !otp || !role) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
