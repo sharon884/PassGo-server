@@ -125,6 +125,7 @@ const submitEventAfterPayment = async (req, res) => {
     await createNotification(req.io, {
       userId: hostId,
       role: "host",
+       roleRef: "User",
       type: "event",
       message: `Your event '${event.title}' has been submitted for admin approval.`,
       reason: "event_submitted",
@@ -136,6 +137,7 @@ const submitEventAfterPayment = async (req, res) => {
     await createNotification(req.io, {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
+       roleRef: "Admin",
       type: "event",
       message: `New event submission by host '${req.user.name}' - '${event.title}'`,
       reason: "new_event_submission",

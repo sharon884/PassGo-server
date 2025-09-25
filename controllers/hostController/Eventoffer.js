@@ -55,6 +55,7 @@ const addOfferToEvent = async (req, res) => {
         userId: user._id,
         role: "user",
         type: "offer",
+         roleRef: "User",
         title: "New Event Offer!",
         message: `A new offer is now available for the event '${event.title}'.`,
         reason: "new_offer",
@@ -68,6 +69,7 @@ const addOfferToEvent = async (req, res) => {
     const adminNotification = createNotification(req.io, {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
+       roleRef: "Admin",
       type: "offer",
       title: "Host Added Offer",
       message: `A host added a new offer to the event '${event.title}'.`,
@@ -81,6 +83,7 @@ const addOfferToEvent = async (req, res) => {
     const hostNotification = createNotification(req.io, {
       userId: hostId,
       role: "host",
+       roleRef : "User",
       type: "offer",
       title: "Offer Published",
       message: `Your offer for '${event.title}' has been successfully published.`,

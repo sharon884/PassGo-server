@@ -227,6 +227,7 @@ const notificationPromises = updatedTickets.flatMap(({ ticketId, refundAmount })
   createNotification(req.io, {
     userId,
     role: "user",
+     roleRef: "User",
     type: "refund",
     message: `₹${refundAmount} refunded for ticket ID ${ticketId}.`,
     reason: "paid_ticket_cancelled",
@@ -235,6 +236,7 @@ const notificationPromises = updatedTickets.flatMap(({ ticketId, refundAmount })
   createNotification(req.io, {
     userId: adminId,
     role: "admin",
+     roleRef: "Admin",
     type: "refund",
     message: `₹${refundAmount} refunded to user (ID: ${userId}) for ticket ID ${ticketId}.`,
     reason: "admin_ticket_refund",
