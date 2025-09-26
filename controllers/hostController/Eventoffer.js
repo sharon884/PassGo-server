@@ -11,7 +11,6 @@ const addOfferToEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-
     const { discountType, value, expiryDate, miniiTickets } = req.body;
     const createdBy = req.user.id;
 
@@ -55,7 +54,7 @@ const addOfferToEvent = async (req, res) => {
         userId: user._id,
         role: "user",
         type: "offer",
-         roleRef: "User",
+        roleRef: "User",
         title: "New Event Offer!",
         message: `A new offer is now available for the event '${event.title}'.`,
         reason: "new_offer",
@@ -69,7 +68,7 @@ const addOfferToEvent = async (req, res) => {
     const adminNotification = createNotification(req.io, {
       userId: process.env.SUPER_ADMIN_ID,
       role: "admin",
-       roleRef: "Admin",
+      roleRef: "Admin",
       type: "offer",
       title: "Host Added Offer",
       message: `A host added a new offer to the event '${event.title}'.`,
@@ -83,7 +82,7 @@ const addOfferToEvent = async (req, res) => {
     const hostNotification = createNotification(req.io, {
       userId: req.user.id,
       role: "host",
-       roleRef : "User",
+      roleRef: "User",
       type: "offer",
       title: "Offer Published",
       message: `Your offer for '${event.title}' has been successfully published.`,
@@ -116,15 +115,17 @@ const cancelOffer = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      return res.status(STATUS_CODE.BAD_REQUEST).json({
-        success: false,
-        message: "Invalid Event Id",
-      });
-    }
+//     if (!mongoose.Types.ObjectId.isValid(offerId)) {
+//       return res.status(STATUS_CODE.BAD_REQUEST).json({
+//         success: false,
+//         message: "Invalid Offer Id", 
+//       });
+//     }
+
+// console.log(offerId);
 
     const offer = await Offer.findOneAndUpdate(
-      { eventId, isActive: true },
+      { _id: eventId, isActive: true },
       { isActive: false },
       { new: true }
     );
@@ -137,8 +138,8 @@ const cancelOffer = async (req, res) => {
     }
 
     return res.status(STATUS_CODE.SUCCESS).json({
-      success: false,
-      message: "offer canceld (soft deleted ) successfully",
+      success: true,
+      message: "offer canceld  successfully",
       data: offer,
     });
   } catch (error) {
