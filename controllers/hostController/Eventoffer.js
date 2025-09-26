@@ -11,7 +11,7 @@ const addOfferToEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    console.log(eventId);
+
     const { discountType, value, expiryDate, miniiTickets } = req.body;
     const createdBy = req.user.id;
 
@@ -81,7 +81,7 @@ const addOfferToEvent = async (req, res) => {
 
     // Notify host (self)
     const hostNotification = createNotification(req.io, {
-      userId: hostId,
+      userId: req.user.id,
       role: "host",
        roleRef : "User",
       type: "offer",
