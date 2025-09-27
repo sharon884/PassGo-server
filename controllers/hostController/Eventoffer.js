@@ -123,11 +123,8 @@ const cancelOffer = async (req, res) => {
 //     }
 
 // console.log(offerId);
-
-    const offer = await Offer.findOneAndUpdate(
-      { _id: eventId, isActive: true },
-      { isActive: false },
-      { new: true }
+  const offer = await Offer.findOneAndDelete(
+      { _id: eventId, isActive: true } 
     );
 
     if (!offer) {
