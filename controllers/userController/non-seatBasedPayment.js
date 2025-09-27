@@ -229,6 +229,7 @@ const verifyPaymentWithoutSeats = async (req, res) => {
     await createNotification(req.io, {
       userId: userId,
       role: "user",
+       roleRef: "User",
       type: "booking",
       message: `Your ticket for '${event.title}' has been booked successfully.`,
       reason: "payment_success",
@@ -239,6 +240,7 @@ const verifyPaymentWithoutSeats = async (req, res) => {
       await createNotification(req.io, {
         userId: process.env.SUPER_ADMIN_ID,
         role: "admin",
+         roleRef: "Admin",
         type: "booking",
         message: `High volume booking: User '${user.name}' booked ${order.quantity} ticket(s) worth ₹${order.finalAmount} for '${event.title}'.`,
         reason: "high_volume_booking",

@@ -155,7 +155,7 @@ const searchEvents = async ( req, res ) => {
                  {title : {$regex : query, $options : "i"}},
                  { description : {$regex : query, $options : "i"}},
                  { category: {$regex : query, $options : "i"}},
-                 { location: {$regex : query, $options : "i"}}, // <-- PROBLEM HERE
+                 { location: {$regex : query, $options : "i"}}, 
                  { "businessInfo.name" : {$regex : query, $options : "i"}},
                  { "businessInfo.organization_name" : {$regex : query, $options : "i"}},
             ],

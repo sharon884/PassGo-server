@@ -91,6 +91,7 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+
     if (!email || !password) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
@@ -411,8 +412,8 @@ const forgetPasswordUser = async (req, res) => {
 //user logout
 const logOutUser = async (req, res) => {
   try {
-    const { id } = req.user.id;
-    console.log(id);
+    const  id  = req.user.id;
+    console.log(id+"haia");
 
     if (id) {
       await User.findByIdAndUpdate(id, { refreshToken: null });

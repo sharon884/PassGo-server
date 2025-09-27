@@ -29,6 +29,7 @@ const getUserProfile = async (req, res) => {
         mobile: user.mobile,
         profile_image: user.profile_image,
         role: user.role,
+        referralCode : user.referralCode,
         is_active: user.is_active,
         hostVerificationStatus: user.hostVerificationStatus,
         isVerified: user.isVerified,

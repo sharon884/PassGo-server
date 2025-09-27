@@ -15,6 +15,7 @@ const eventAnalytics = require("./routes/globalRoutes/evetAnalytics");
 const { globalLimiter } = require("./middlewares/rateLimiter/ratelimiter");
 const notificationRoutes = require("./routes/globalRoutes/notificationRoutes");
 const landingRoutes = require("./routes/globalRoutes/landingRoutes");
+const  redis  = require("./utils/redisClient");
 
 dotenv.config();
 
@@ -34,6 +35,8 @@ app.use(
 );
 app.use(cookieParser());
 
+console.log( process.env.REDIS_URL,
+     process.env.REDIS_TOKEN )
 
 // io instance
 app.use((req, res, next) => {
@@ -52,6 +55,8 @@ app.get("/", (req, res) => {
   console.log("running");
   res.send("PASS-GO is running !");
 });
+
+
 
 console.log("adedd a console.log for checkingddd");
 app.use("/api/user", userRoutes);

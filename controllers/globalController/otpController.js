@@ -10,7 +10,9 @@ const {
   generateRefreshToken,
 } = require("../../utils/jwt");
 const mongoose = require("mongoose");
-const { createNotification } = require("../../Services/notifications/notificationServices");
+const {
+  createNotification,
+} = require("../../Services/notifications/notificationServices");
 
 const sendOTP = async (req, res) => {
   try {
@@ -44,7 +46,7 @@ const verifyOTP = async (req, res) => {
   try {
     const { email, userId, otp, role } = req.body;
     console.log(email);
-
+    console.log("hai");
     if (!email || !userId || !otp || !role) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
         success: false,
@@ -81,7 +83,7 @@ const verifyOTP = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
-     let transactionCommitted = false; 
+    let transactionCommitted = false;
 
     try {
       const user = await User.findById(userId).session(session);
@@ -114,7 +116,11 @@ const verifyOTP = async (req, res) => {
           session
         );
         if (!userWallet) {
-          userWallet = new Wallet({ user: user._id, balance: rewardAmount });
+          userWallet = new Wallet({
+            user: user._id,
+            balance: rewardAmount,
+            walletType: "user",
+          });
         } else {
           userWallet.balance = userWallet.balance + rewardAmount;
         }
@@ -125,6 +131,7 @@ const verifyOTP = async (req, res) => {
           [
             {
               userId: user._id,
+              walletType: "user",
               amount: rewardAmount,
               type: "referral_reward",
               method: "referral",
@@ -142,13 +149,19 @@ const verifyOTP = async (req, res) => {
           refWallet = new Wallet({
             user: user.referredBy,
             balance: rewardAmount,
+            walletType: "user",
           });
         } else {
           refWallet.balance = refWallet.balance + rewardAmount;
         }
+          
+        if (!refWallet.history) {
+          refWallet.history = [];
+        }
 
         refWallet.history.push({
           type: "credit",
+          walletType: "user",
           amount: rewardAmount,
           reason: "Referral Bonus",
           initiatedBy: "system",
@@ -162,6 +175,7 @@ const verifyOTP = async (req, res) => {
             {
               userId: user.referredBy,
               amount: rewardAmount,
+              walletType: "user",
               type: "referral_reward",
               method: "referral",
               role: "user",
@@ -174,6 +188,7 @@ const verifyOTP = async (req, res) => {
         await createNotification(req.io, {
           userId: user.referredBy,
           role: "user",
+          roleRef: "User",
           type: "referral",
           message: `You earned ₹${rewardAmount} for referring ${user.name}`,
           reason: "referral_bonus",
@@ -189,7 +204,7 @@ const verifyOTP = async (req, res) => {
       await OTP.deleteMany({ user_id: userId }).session(session);
 
       await session.commitTransaction();
-       transactionCommitted = true;
+      transactionCommitted = true;
       session.endSession();
 
       res.cookie("accessToken", accessToken, {
@@ -219,7 +234,7 @@ const verifyOTP = async (req, res) => {
         role: role,
         type: "account",
         title: "Account Verified",
-        roleRef : "User",
+        roleRef: "User",
         message:
           "Your account has been successfully verified! Welcome aboard 🎉",
         reason: "account_verified",
@@ -232,9 +247,9 @@ const verifyOTP = async (req, res) => {
         message: "OTP verified successfully" + referralMessage,
       });
     } catch (error) {
-     if (!transactionCommitted) {
-      await session.abortTransaction();
-    }
+      if (!transactionCommitted) {
+        await session.abortTransaction();
+      }
       session.endSession();
       console.log("Transaction Error:", error);
       return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({

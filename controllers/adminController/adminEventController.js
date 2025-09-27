@@ -40,7 +40,7 @@ const getEventsWithFilters = async (req, res) => {
     }
 
     if (search) {
-      // 🔥 FIXED: Updated search to include locationName field for GeoJSON support
+     
       query.$or = [{ title: { $regex: search, $options: "i" } }, { locationName: { $regex: search, $options: "i" } }]
     }
 
@@ -51,7 +51,7 @@ const getEventsWithFilters = async (req, res) => {
     const [events, total] = await Promise.all([
       Event.find(query)
         .populate("host", "name email")
-        // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
+        
         .select(
           "title description category images location locationName date time tickets businessInfo eventType status isApproved advancePaid host createdAt updatedAt",
         )
@@ -264,6 +264,7 @@ const rejectEvent = async (req, res) => {
       role: "host",
       roleRef : "User",
       type: "event_status",
+        roleRef : "User",
       title: "Event Rejected",
       message: `Your event '${event.title}' has been rejected by the admin.`,
       reason: `Reason: ${reason}`,

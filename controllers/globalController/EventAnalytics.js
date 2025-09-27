@@ -16,7 +16,6 @@ const getEventBookingSummary = async (req, res) => {
       })
     }
 
-    // 🔥 FIXED: Make sure to select both location (GeoJSON) and locationName fields
     const event = await Event.findById(eventId).select(
       "_id title eventType date category location locationName images description status tickets",
     )
@@ -42,6 +41,8 @@ const getEventBookingSummary = async (req, res) => {
         ticketStats[category] = {
           total: quantity,
           sold,
+          //  Initialize revenue field for accurate breakdown table
+          revenue: 0, 
           remaining: quantity - sold,
         }
       }
@@ -58,6 +59,7 @@ const getEventBookingSummary = async (req, res) => {
       for (const ticket of tickets) {
         if (ticketStats[ticket.category]) {
           ticketStats[ticket.category].sold += 1
+          // Revenue remains 0 for free tickets
         }
       }
 
@@ -89,25 +91,29 @@ const getEventBookingSummary = async (req, res) => {
       })
 
       for (const ticket of paidTickets) {
-        console.log(ticket.seats)
+        let soldQuantity = 0;
+        
         if (eventType === "paid_stage_with_seats") {
           const seatCount = ticket.seats.reduce((sum, seatBlock) => sum + (seatBlock.seatNumber?.length || 0), 0)
+          soldQuantity = seatCount;
           ticketsSold += seatCount
-
-          if (ticketStats[ticket.category]) {
-            ticketStats[ticket.category].sold += seatCount
-          }
         } else {
+          soldQuantity = ticket.quantity;
           ticketsSold += ticket.quantity
-
-          if (ticketStats[ticket.category]) {
-            ticketStats[ticket.category].sold += ticket.quantity
-          }
         }
-        totalRevenue += ticket.amount
+        
+        // FUse finalAmount for accurate revenue calculation (accounts for offers/GST)
+        totalRevenue += ticket.finalAmount 
+
+        if (ticketStats[ticket.category]) {
+            ticketStats[ticket.category].sold += soldQuantity
+            //  Ensure category-wise revenue is also updated using finalAmount
+            ticketStats[ticket.category].revenue += ticket.finalAmount
+        }
       }
 
       for (const category in ticketStats) {
+        // Remaining tickets and accurate revenue for breakdown
         ticketStats[category].remaining = ticketStats[category].total - ticketStats[category].sold
       }
 
@@ -122,6 +128,7 @@ const getEventBookingSummary = async (req, res) => {
           {
             $project: {
               createdAt: 1,
+              // Calculate ticket count for the day
               count: {
                 $reduce: {
                   input: "$seats",
@@ -131,6 +138,8 @@ const getEventBookingSummary = async (req, res) => {
                   },
                 },
               },
+              // Calculate revenue for the day (using finalAmount)
+              revenue: "$finalAmount"
             },
           },
           {
@@ -139,9 +148,12 @@ const getEventBookingSummary = async (req, res) => {
                 $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
               },
               count: { $sum: "$count" },
+              revenue: { $sum: "$revenue" } // Aggregate daily revenue
             },
           },
           { $sort: { _id: 1 } },
+          // Reformat to match expected structure
+          { $project: { date: "$_id", count: 1, revenue: 1, _id: 0 } }
         ])
       } else {
         // paid_without_seats
@@ -158,14 +170,16 @@ const getEventBookingSummary = async (req, res) => {
                 $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
               },
               count: { $sum: "$quantity" },
+              revenue: { $sum: "$finalAmount" } // Aggregate daily revenue
             },
           },
           { $sort: { _id: 1 } },
+          // Reformat to match expected structure
+          { $project: { date: "$_id", count: 1, revenue: 1, _id: 0 } }
         ])
       }
     }
 
-    console.log(dailySales)
     const offer = await Offer.findOne({ eventId, isActive: true })
 
     return res.status(STATUS_CODE.SUCCESS).json({
@@ -177,16 +191,20 @@ const getEventBookingSummary = async (req, res) => {
           type: event.eventType,
           date: event.date,
           category: event.category,
-          location: event.location, // Keep GeoJSON for potential map usage
-          locationName: event.locationName, // 🔥 FIXED: Add locationName for display
+          location: event.location, 
+          locationName: event.locationName, 
           images: event.images,
           description: event.description,
           status: event.status,
         },
-        ticketStats,
-        ticketsSold,
-        totalRevenue,
-        dailySales,
+        ticketStats, //  Contains accurate revenue and remaining tickets
+        ticketsSold, //  Accurate total sold
+        totalRevenue, //  Accurate total revenue
+        dailySales: dailySales.map(d => ({ 
+             date: d._id || d.date, 
+             count: d.count, 
+             revenue: d.revenue || 0 
+        })), //  Ensure date field is consistently named for frontend
         offer: offer
           ? {
               _id: offer._id,

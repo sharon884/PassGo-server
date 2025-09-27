@@ -513,7 +513,7 @@ const lockPaidTickets = async (req, res) => {
     const expiresIn = 5 * 60; // 5 minutes in seconds
     const lockData = JSON.stringify({ userId, category, quantity, eventId });
 
-    // ✅ Correct syntax for @upstash/redis
+    
     await redis.set(userLockKey, lockData, { ex: expiresIn });
 
     const lockExpiresAt = Date.now() + expiresIn * 1000;
