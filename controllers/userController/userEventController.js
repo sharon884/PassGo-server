@@ -146,6 +146,7 @@ const getEventById = async (req, res) => {
 // search Events 
 const searchEvents = async ( req, res ) => {
     try {
+      console.log("hai");
         const { query = "", page = 1, limit = 6 } = req.query;
         const pageNum = parseInt(page, 10);
         const limitNum = parseInt(limit, 10);
