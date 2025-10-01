@@ -118,12 +118,14 @@ const verifyAdvancePayment = async (req, res) => {
         message: "Event not found or unauthorized",
       });
     }
+    
+    const advanceAmount = Math.ceil(event.estimatedRevenue * 0.2) || 200; 
 
     event.advancePaid = true;
+     event.advancePaymentAmountPaid = advanceAmount;
     event.status = "requested";
     await event.save({ session });
 
-    const advanceAmount = Math.ceil(event.estimatedRevenue * 0.2) || 200;
 
     let adminWallet = await Wallet.findOne({ walletType: "admin" }).session(
       session

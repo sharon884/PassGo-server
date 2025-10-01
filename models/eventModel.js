@@ -103,6 +103,10 @@ const eventSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+     advancePaymentAmountPaid: { 
+      type: Number,
+      default: 0,
+    },
     rejectionReason: {
       type: String,
       default: null,

@@ -16,6 +16,7 @@ const { globalLimiter } = require("./middlewares/rateLimiter/ratelimiter");
 const notificationRoutes = require("./routes/globalRoutes/notificationRoutes");
 const landingRoutes = require("./routes/globalRoutes/landingRoutes");
 const  redis  = require("./utils/redisClient");
+const { startHostPayoutJob } = require('./cron/hostPayoutJob'); 
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.set("io", io);
 app.use(globalLimiter);
 
 startUnlockSeatsCron(io);
+ startHostPayoutJob();
 
 connectDB();
 
