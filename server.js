@@ -47,6 +47,7 @@ app.use((req, res, next) => {
 app.set("io", io);
 
 app.use(globalLimiter);
+app.set('trust proxy', 1); 
 
 startUnlockSeatsCron(io);
  startHostPayoutJob();
