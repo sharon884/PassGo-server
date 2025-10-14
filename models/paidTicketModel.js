@@ -61,14 +61,29 @@ const paidTicketSchema = new mongoose.Schema(
     razorpaySignature: String,
     status: {
       type: String,
-      enum: ["created", "paid", "failed", "cancelled"],
+      enum: ["created", "paid", "failed", "cancelled", "retry_pending", "failed_permanent", "failed_lock_expired"], 
       default: "created",
     },
-    paymentMethod: {
+     paymentMethod: {
       type: String,
-      enum: ["upi", "wallet"],
+      enum: ["wallet", "razorpay","upi"],
       required: true,
     },
+    razorpayOrderIds: {
+      type: [String],
+      default: function() {
+        return this.razorpayOrderId ? [this.razorpayOrderId] : [];
+      }
+    },
+    retryCount: {
+      type: Number,
+      default: 0,
+    },
+    failureReason: {
+      type: String, 
+      default: null,
+    },
+
     refundStatus: {
       type: String,
       enum: ["not_requested", "requested", "refunded"],

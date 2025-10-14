@@ -18,11 +18,13 @@ const Wallet = require("../../models/walletModel");
 const {
   createNotification,
 } = require("../../Services/notifications/notificationServices");
+const MAX_RETRIES = 3;
 
 const createOrder = async (req, res) => {
   try {
     const { eventId, seatIds, paymentMethod } = req.body;
     const userId = req.user.id;
+  
 
     if (!eventId || !seatIds || !paymentMethod || seatIds.length === 0) {
       return res.status(STATUS_CODE.BAD_REQUEST).json({
@@ -30,8 +32,8 @@ const createOrder = async (req, res) => {
         message: "Event ID and seat IDs , payment method are required",
       });
     }
-
     // find event
+
     const event = await Event.findById(eventId);
     if (!event) {
       return res.status(STATUS_CODE.NOT_FOUND).json({
@@ -39,7 +41,6 @@ const createOrder = async (req, res) => {
         message: "Event not found",
       });
     }
-
     // validate seats
     const seats = await Seat.find({
       _id: { $in: seatIds },
@@ -94,9 +95,10 @@ const createOrder = async (req, res) => {
       payment_capture: 1,
     });
     console.log("razorpay order", razorpayOrder);
-    const paidTicket = new PaidTicket({
+     const paidTicket = new PaidTicket({
       userId,
       eventId,
+      // Map seats for the ticket document
       seats: seats.map((seat) => ({
         seatNumber: seat.seatNumber,
         price: seat.price,
@@ -107,6 +109,8 @@ const createOrder = async (req, res) => {
       finalAmount,
       offerApplied: offerDetails,
       razorpayOrderId: razorpayOrder.id,
+      razorpayOrderIds: [razorpayOrder.id], 
+      retryCount: 0, 
       paymentMethod,
       status: "created",
     });
@@ -312,7 +316,187 @@ const verifyPayment = async (req, res) => {
   }
 };
 
+
+const handlePaymentFailure = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const { orderId, razorpayOrderId, errorReason } = req.body;
+    const paidTicket = await PaidTicket.findById(orderId).session(session);
+
+    if (!paidTicket) {
+      await session.abortTransaction();
+      return res.status(STATUS_CODE.NOT_FOUND).json({ success: false, message: "Order not found" });
+    }
+
+    if (paidTicket.status === "paid") {
+      await session.abortTransaction();
+      return res.status(STATUS_CODE.CONFLICT).json({ success: false, message: "Order is already paid" });
+    }
+    
+    // Check if the failure is for the current attempt's Razorpay Order ID
+    const lastRazorpayOrderId = paidTicket.razorpayOrderIds.slice(-1)[0];
+    if (razorpayOrderId !== lastRazorpayOrderId) {
+        // This handles race conditions where an old failure comes in late.
+        await session.abortTransaction();
+        return res.status(STATUS_CODE.BAD_REQUEST).json({
+            success: false,
+            message: "Failure is for an outdated order ID. Ignoring.",
+            retryAvailable: false,
+        });
+    }
+
+    // Increment count and record failure details
+    paidTicket.retryCount = (paidTicket.retryCount || 0) + 1;
+    paidTicket.failureReason = errorReason;
+
+    if (paidTicket.retryCount > MAX_RETRIES) {
+      // Max retries reached, permanently fail and free the seats
+      paidTicket.status = "failed_permanent";
+      
+      const seatNumbers = paidTicket.seats.map((seat) => seat.seatNumber).flat();
+
+      await Seat.updateMany(
+        { 
+            event: paidTicket.eventId, 
+            seatNumber: { $in: seatNumbers },
+            lockedBy: paidTicket.userId, 
+        },
+        { 
+            $set: { status: "available", lockedBy: null, lockExpiresAt: null } 
+        },
+        { session }
+      );
+      
+      await paidTicket.save({ session });
+      await session.commitTransaction();
+      return res.status(STATUS_CODE.SUCCESS).json({ 
+          success: true, 
+          status: paidTicket.status, 
+          retryAvailable: false, 
+          message: "Maximum retry limit reached." 
+      });
+
+    } else {
+      // Set status to retry_pending and keep seats locked for a retry window
+      paidTicket.status = "retry_pending";
+      await paidTicket.save({ session });
+      await session.commitTransaction();
+      return res.status(STATUS_CODE.SUCCESS).json({
+        success: true,
+        status: paidTicket.status,
+        retryAvailable: true,
+        message: "Payment failed. Retry attempt recorded."
+      });
+    }
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Payment failure handling error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error during failure recording",
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+
+
+const initiatePaymentRetry = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { orderId } = req.body; // orderId is the PaidTicket ID
+    const paidTicket = await PaidTicket.findById(orderId).session(session);
+
+    if (!paidTicket || paidTicket.status !== "retry_pending") {
+      await session.abortTransaction();
+      return res.status(STATUS_CODE.BAD_REQUEST).json({
+        success: false,
+        message: "Order is not available for retry or does not exist.",
+      });
+    }
+
+    const seatNumbers = paidTicket.seats.map((seat) => seat.seatNumber).flat();
+    const now = new Date();
+
+    const seats = await Seat.find({
+        event: paidTicket.eventId,
+        seatNumber: { $in: seatNumbers },
+        lockedBy: paidTicket.userId, 
+    }).session(session);
+    
+    
+    const allSeatsLockedAndValid = seats.length === seatNumbers.length && seats.every(seat => 
+        seat.status === 'locked' && seat.lockExpiresAt > now
+    );
+    
+    if (!allSeatsLockedAndValid) {
+     
+      await Seat.updateMany(
+        { event: paidTicket.eventId, seatNumber: { $in: seatNumbers } },
+        { $set: { status: "available", lockedBy: null, lockExpiresAt: null } }, 
+        { session }
+      );
+      paidTicket.status = "failed_lock_expired";
+      await paidTicket.save({ session });
+      
+      await session.commitTransaction();
+      return res.status(STATUS_CODE.FORBIDDEN).json({
+        success: false,
+        message: "Your seat reservation expired. Please select seats again.",
+        status: "lock_expired" 
+      });
+    }
+    
+
+    const razorpayAmount = Math.round(paidTicket.finalAmount * 100);
+    const newRazorpayOrder = await razorPay.orders.create({
+      amount: razorpayAmount,
+      currency: "INR",
+      receipt: generateOrderId(), 
+      payment_capture: 1,
+    });
+    
+    // 4. Update PaidTicket with new Order ID
+    paidTicket.razorpayOrderIds.push(newRazorpayOrder.id);
+    paidTicket.razorpayOrderId = newRazorpayOrder.id; // Set the latest ID
+    paidTicket.status = "created"; 
+
+    await paidTicket.save({ session });
+    await session.commitTransaction();
+
+    // 5. Return new details to the frontend
+    return res.status(STATUS_CODE.SUCCESS).json({
+      success: true,
+      message: "Retry order created successfully",
+      razorpayOrderId: newRazorpayOrder.id,
+      amount: razorpayAmount,
+      currency: "INR",
+      key: process.env.RAZORPAY_KEY_ID,
+      orderId: paidTicket._id, // PaidTicket ID
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Payment retry error:", error);
+    return res.status(STATUS_CODE.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error during retry initialization",
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+
+
 module.exports = {
   createOrder,
   verifyPayment,
+   initiatePaymentRetry,
+   handlePaymentFailure,
 };

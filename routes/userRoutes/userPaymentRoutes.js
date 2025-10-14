@@ -1,7 +1,8 @@
 // userPayment related routes
 const express = require("express");
 const router = express.Router();
-const { createOrder, verifyPayment } = require("../../controllers/userController/paymentController");
+const { createOrder, verifyPayment,handlePaymentFailure, 
+    initiatePaymentRetry } = require("../../controllers/userController/paymentController");
 const verifyToken = require("../../middlewares/verifyTokenMiddleware");
 const userOnly = require("../../middlewares/authorizedRoleMiddlewares/wrappers/userOnly");
 const { createOrderWithoutSeats } = require("../../controllers/userController/non-seatBasedPayment");
@@ -12,4 +13,6 @@ router.post("/verify-payment", verifyToken, verifyPayment);
 
 router.route("/create-order/without-seats").post( verifyToken, createOrderWithoutSeats );
 router.route("/verify-payment/without-seats").post( verifyToken, verifyPayment );
+router.post("/payment/failure", verifyToken, handlePaymentFailure); 
+router.post("/payment/retry", verifyToken, initiatePaymentRetry);
 module.exports = router;
